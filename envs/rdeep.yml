@@ -1,0 +1,14 @@
+channels:
+ - conda-forge
+ - bioconda
+ - r
+dependencies:
+ - r-base
+ - bioconductor-go.db
+ - r-tidyr
+ - r-sp
+ - r-raster
+ - r-gridgraphics
+ - r-ggplot2
+ - r-gridextra
+ - r-lattice
