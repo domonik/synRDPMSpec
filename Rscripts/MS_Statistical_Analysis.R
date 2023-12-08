@@ -3399,19 +3399,19 @@ sum_tab_exp$max_rnase <- apply(vect6, 2, function(x) {
 # replace shift information for those proteins with 0.
 
 # Remove ctrl peak info for negative loss. No shift. 
-sum_tab_exp[sum_tab_exp$ctrl_peak_amount_loss <= 0,][, c("nb_shift","dist","ctrl_peak","ctrl_peak_amount","ctrl_peak_amount_loss","ctrl_peak_p_value")] <- 0
+#sum_tab_exp[sum_tab_exp$ctrl_peak_amount_loss <= 0,][, c("nb_shift","dist","ctrl_peak","ctrl_peak_amount","ctrl_peak_amount_loss","ctrl_peak_p_value")] <- 0
 # Remove right_shift info for negative loss. 
-sum_tab_exp[sum_tab_exp$ctrl_peak_amount_loss <= 0,][, c("right_shift")] <- FALSE
+#sum_tab_exp[sum_tab_exp$ctrl_peak_amount_loss <= 0,][, c("right_shift")] <- FALSE
 # Remove rnase peak info for non_significant gain -> not the case in the sample file: error message
 # Error in value[[jvseq[[jjj]]]] : subscript out of bounds
-sum_tab_exp[((sum_tab_exp$ctrl_peak_amount_loss <= 0)+(sum_tab_exp$rnase_peak_p_value > 0.05)) == 2,][, c("rnase_peak","rnase_peak_amount","rnase_peak_amount_gain","rnase_peak_p_value")] <- 0
+#sum_tab_exp[((sum_tab_exp$ctrl_peak_amount_loss <= 0)+(sum_tab_exp$rnase_peak_p_value > 0.05)) == 2,][, c("rnase_peak","rnase_peak_amount","rnase_peak_amount_gain","rnase_peak_p_value")] <- 0
 
 # Remove rnase peak info for negative gain. No shift.
-sum_tab_exp[sum_tab_exp$rnase_peak_amount_gain <= 0,][, c("nb_shift","dist","rnase_peak","rnase_peak_amount","rnase_peak_amount_gain","rnase_peak_p_value")] <- 0
+#sum_tab_exp[sum_tab_exp$rnase_peak_amount_gain <= 0,][, c("nb_shift","dist","rnase_peak","rnase_peak_amount","rnase_peak_amount_gain","rnase_peak_p_value")] <- 0
 
 # Remove ctrl peak info for non_significant loss -> not the case in the sample file: error message
 # Error in value[[jvseq[[jjj]]]] : subscript out of bounds
-sum_tab_exp[((sum_tab_exp$rnase_peak_amount_gain <= 0)+(sum_tab_exp$ctrl_peak_p_value > 0.05)) == 2,][, c("ctrl_peak","ctrl_peak_amount","ctrl_peak_amount_loss","ctrl_peak_p_value")] <- 0
+#sum_tab_exp[((sum_tab_exp$rnase_peak_amount_gain <= 0)+(sum_tab_exp$ctrl_peak_p_value > 0.05)) == 2,][, c("ctrl_peak","ctrl_peak_amount","ctrl_peak_amount_loss","ctrl_peak_p_value")] <- 0
 
 # Remove right_shift info for negative gain. 
 sum_tab_exp[sum_tab_exp$rnase_peak_amount_gain <= 0,][, c("right_shift")] <- FALSE

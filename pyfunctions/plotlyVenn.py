@@ -33,6 +33,7 @@ def venn_to_plotly(L_sets, L_labels=None, title=None, L_color = None):
     # Create empty lists to hold shapes and annotations
     L_shapes = []
     L_annotation = []
+    yanchors = ["bottom", "bottom", "top"]
 
     # Define color list for sets
     # check for other colors: https://css-tricks.com/snippets/css/named-colors-and-hex-equivalents/
@@ -82,6 +83,9 @@ def venn_to_plotly(L_sets, L_labels=None, title=None, L_color = None):
         anno_set_label = go.layout.Annotation(
             xref="x",
             yref="y",
+            #xanchor="center",
+            yanchor=yanchors[i],
+
             x=v.set_labels[i].get_position()[0],
             y=v.set_labels[i].get_position()[1],
             text=v.set_labels[i].get_text(),
@@ -100,20 +104,20 @@ def venn_to_plotly(L_sets, L_labels=None, title=None, L_color = None):
     n_subsets = sum([scipy.special.binom(n_sets, i + 1) for i in range(0, n_sets)])
     for i in range(0, int(n_subsets)):
         # create subset label (number of common elements for current subset
+        if v.subset_labels[i] is not None:
+            anno_subset_label = go.layout.Annotation(
+                xref="x",
+                yref="y",
+                x=v.subset_labels[i].get_position()[0],
+                y=v.subset_labels[i].get_position()[1],
+                text=v.subset_labels[i].get_text(),
+                showarrow=False
+            )
 
-        anno_subset_label = go.layout.Annotation(
-            xref="x",
-            yref="y",
-            x=v.subset_labels[i].get_position()[0],
-            y=v.subset_labels[i].get_position()[1],
-            text=v.subset_labels[i].get_text(),
-            showarrow=False
-        )
-
-        L_annotation.append(anno_subset_label)
+            L_annotation.append(anno_subset_label)
 
     # define off_set for the figure range
-    off_set = 0.2
+    off_set = 0.1
 
     # get min and max for x and y dimension to set the figure range
     x_max = max(L_x_max) + off_set
