@@ -14,7 +14,8 @@ rule all:
         bubble_plot = expand(rules.createBubblePlot.output, highlight=["top10"]),
         rna_binding = rules.extractGORNABinding.output,
         enrich = rules.GOEnrichment.output,
-        benchmark = rules.plotRuntime.output
+        benchmark = rules.plotRuntime.output,
+        salmonella = rules.prepareSalmonellaData.output
 
 
 

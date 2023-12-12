@@ -118,3 +118,36 @@ rule extractGORNABinding:
         df = df.drop_duplicates("old_locus_tag")
         df = df[["old_locus_tag", "GO RNA-binding"]]
         df.to_csv(output.file, sep="\t", index=False)
+
+
+rule prepareSalmonellaData:
+    input:
+        file = "Data/salmonella_table.tsv"
+    output:
+        file = "Pipeline/Salmonella/preparedIntensities.tsv",
+        file2 = "Pipeline/Salmonella/preparedDesing.tsv"
+    run:
+        import pandas as pd
+        df = pd.read_csv(input.file, sep="\t")
+        df = df[["UniprotID", "gene"] + list(df.columns[df.columns.str.contains("norm_to_spike-in fraction")])]
+        df = df.rename({"norm_to_spike-in fraction PR": "norm_to_spike-in fraction 21R"}, axis=1)
+        df = df.rename({"norm_to_spike-in fraction P": "norm_to_spike-in fraction 21"}, axis=1)
+        df = df[~df["UniprotID"].str.contains("_HUMAN_")]
+
+        design = {"Name": [], "RNase": [], "Fraction": [], "Replicate": []}
+        for orig_col in df.columns[2:]:
+            col = orig_col
+            if col[-1] == "R":
+                rnase = True
+                col = col[0:-1]
+            else:
+                rnase = False
+            fraction = int(col.split(" ")[-1])
+            rep = 1
+            design["Name"].append(orig_col)
+            design["RNase"].append(rnase)
+            design["Fraction"].append(fraction)
+            design["Replicate"].append(rep)
+        design = pd.DataFrame(design)
+        df.to_csv(output.file, sep="\t", index=False)
+        design.to_csv(output.file2, sep="\t", index=False)
