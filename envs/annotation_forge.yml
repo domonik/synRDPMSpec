@@ -1,0 +1,8 @@
+channels:
+ - conda-forge
+ - bioconda
+dependencies:
+ - r-base
+ - bioconductor-annotationforge
+ - bioconductor-go.db
+ - r-tidyr

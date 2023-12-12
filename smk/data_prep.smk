@@ -1,3 +1,6 @@
+import os
+
+ORGANISMID = f"{config['genus']}.{config['species']}_taxid{config['tax_id']}"
 
 
 rule multiplyData:
@@ -53,17 +56,23 @@ rule processGOTerms:
         go_terms = "Data/GOAnno.tsv"
     output:
         go_tsv = "Pipeline/GO/expandedGO.tsv",
+        symbols = "Pipeline/GO/GOfakeSymbols.tsv",
     run:
         import pandas as pd
-
+        import numpy as np
         df = pd.read_csv(input.go_terms, sep="\t")
         df = df[["Gene Names (ordered locus)", "Gene Ontology IDs"]]
         df = df.rename({"Gene Names (ordered locus)": "old_locus_tag"}, axis=1)
+        symbols = df[["old_locus_tag"]]
+        symbols = symbols.drop_duplicates()
+        symbols["random"] = np.arange(0, len(symbols))
+
 
         df["GOTerm"] = df["Gene Ontology IDs"].str.split("; ")
         df = df.explode("GOTerm")[["old_locus_tag", "GOTerm"]]
         df = df.dropna()
         df.to_csv(output.go_tsv, sep="\t", index=False)
+        symbols.to_csv(output.symbols, sep="\t", index=False)
 
 rule tmpbuildGOTable:
     input:
@@ -72,6 +81,27 @@ rule tmpbuildGOTable:
         all_terms = "Pipeline/GO/expandedTerms.tsv"
     script:
         "../Rscripts/getFullGOTerms.R"
+
+
+rule generateOrgDB:
+    input:
+        symbols = rules.processGOTerms.output.symbols,
+        go_terms = rules.processGOTerms.output.go_tsv
+    params:
+        species=config["species"],
+        genus=config["genus"]
+    conda:
+        "../envs/annotation_forge.yml"
+    output:
+        annotation_db = directory(
+            os.path.join("Pipeline/AnnotationDBs", ORGANISMID)
+        ),
+        finished_file = temporary(
+            os.path.join( "Pipeline/AnnotationDBs/finished_" + ORGANISMID)
+        )
+    script:
+        "../Rscripts/createAnnotation.R"
+
 
 
 rule extractGORNABinding:

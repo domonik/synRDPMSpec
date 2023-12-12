@@ -11,7 +11,10 @@ rule all:
         #joined = expand(rules.plotVennDiagramm.output, ribo=[False, True, "only"]),
         allvenns = rules.plotAllVenns.output,
         distribution = expand(rules.plotDistribution.output, distributionids=config["distributions"].keys()),
-        rna_binding = rules.extractGORNABinding.output
+        bubble_plot = expand(rules.createBubblePlot.output, highlight=["top10"]),
+        rna_binding = rules.extractGORNABinding.output,
+        enrich = rules.GOEnrichment.output,
+        benchmark = rules.plotRuntime.output
 
 
 

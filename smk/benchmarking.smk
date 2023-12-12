@@ -25,7 +25,10 @@ rule meanRuntimeAndRAM:
                 quantile = np.quantile(df[["s", "max_uss"]], q=q, axis=0)
                 stats[f"q{q}_s"] = quantile[0]
                 stats[f"q{q}_max_uss"] = quantile[1]
-            stats["ANSOIM"] =  anosim
+            stats["Tool"] = "RDPMSpecIdentifier" if key != "RdeepData" else "RDeeP"
+            stats["stdev_s"] = np.std(df["s"])
+            stats["stdev_max_uss"] = np.std(df["max_uss"])
+            stats["ANOSIM"] =  anosim
             stats["Replicates per group"] = replicates
             stats["Name"] = key
             dfs.append(stats)
