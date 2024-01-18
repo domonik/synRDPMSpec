@@ -43,7 +43,7 @@ rule multiplyData:
                     replicates.append(br)
                     newcols[name] = fakedata
 
-        design = {"Name": names, "RNase": rnases, "Fraction": fractions, "Replicate": replicates}
+        design = {"Name": names, "Treatment": rnases, "Fraction": fractions, "Replicate": replicates}
         df = pd.DataFrame(design)
         df.to_csv(output.multipleDesign, sep="\t", index=False)
         intensities = pd.DataFrame(newcols)
@@ -134,7 +134,7 @@ rule prepareSalmonellaData:
         df = df.rename({"norm_to_spike-in fraction P": "norm_to_spike-in fraction 21"}, axis=1)
         df = df[~df["UniprotID"].str.contains("_HUMAN_")]
 
-        design = {"Name": [], "RNase": [], "Fraction": [], "Replicate": []}
+        design = {"Name": [], "Treatment": [], "Fraction": [], "Replicate": []}
         for orig_col in df.columns[2:]:
             col = orig_col
             if col[-1] == "R":
@@ -145,9 +145,87 @@ rule prepareSalmonellaData:
             fraction = int(col.split(" ")[-1])
             rep = 1
             design["Name"].append(orig_col)
-            design["RNase"].append(rnase)
+            design["Treatment"].append(rnase)
             design["Fraction"].append(fraction)
             design["Replicate"].append(rep)
         design = pd.DataFrame(design)
         df.to_csv(output.file, sep="\t", index=False)
         design.to_csv(output.file2, sep="\t", index=False)
+
+
+rule prepareinitialData:
+    input:
+        file = "Data/synIntensities.tsv",
+        uniprot = "Data/GOAnno.tsv",
+        go_binders = rules.extractGORNABinding.output.file
+    output:
+        sanitized_df = "Pipeline/sanitized_df.tsv"
+    run:
+        import pandas as pd
+        go_table = pd.read_csv(input.go_binders, sep="\t")
+
+        rapdor_table = pd.read_csv(input.file, sep="\t")
+        uniprot_anno = pd.read_csv(input.uniprot, sep="\t")
+        uniprot_anno = uniprot_anno.rename({"Gene Names (ordered locus)": "old_locus_tag"}, axis=1)
+        uniprot_anno = uniprot_anno[["Gene Names", "old_locus_tag"]]
+        uniprot_anno["Gene Names"] = uniprot_anno["Gene Names"].str.split(" ").str[0]
+        uniprot_anno = uniprot_anno[~uniprot_anno["old_locus_tag"].isna()]
+        rapdor_table = rapdor_table.merge(uniprot_anno, on="old_locus_tag", how="left")
+
+        rapdor_table['Gene'] = rapdor_table['Gene Names'].fillna(rapdor_table['Gene'])
+        rapdor_table["small_ribosomal"] = rapdor_table["Gene"].str.contains(r'\b(rps|Rps)(?![1-9][A-Za-z])',case=False)
+        rapdor_table["large_ribosomal"] = rapdor_table["Gene"].str.contains(r'\b(rpl|Rpl)', case=False)
+        rapdor_table["photosystem"] = rapdor_table["Gene"].str.contains(r'\b(psb|psa)', case=False)
+        rapdor_table["ribosomal protein"] = (rapdor_table["large_ribosomal"] | rapdor_table["small_ribosomal"])
+        rapdor_table = rapdor_table.merge(go_table, on="old_locus_tag", how="left")
+
+        rapdor_table["ribosomal protein"] = ((rapdor_table["Gene"].str.contains('rpl|rps|Rpl|Rps', case=False)) | (rapdor_table['ProteinFunction'].str.contains('ribosomal protein', case=False)))
+        rapdor_table.to_csv(output.sanitized_df, sep="\t", index=False)
+
+
+
+rule prepareSynConditionedMS:
+    input:
+        membrane = "Data/MembraneProteins.csv",
+        soluble = "Data/SolubleProteins.csv"
+    output:
+        intensities = "Pipeline/ConditionedSynechocystis/csv/{condition}_intensities.tsv",
+        design = "Pipeline/ConditionedSynechocystis/csv/{condition}_design.tsv",
+    run:
+        import pandas as pd
+        def multi_delimiter_split(string, delimiters):
+            for delimiter in delimiters:
+                string = " ".join(string.split(delimiter))
+
+            result = string.split()
+            return result
+        membrane = pd.read_csv(input.membrane, sep="\t")
+        membrane = membrane.rename(columns=lambda x: x.replace('Fe', 'Fe-'))
+
+
+        membrane = membrane[["Accession", "Gene_symbol"] + list(membrane.columns[membrane.columns.str.contains(f"Ctrl1_|{wildcards.condition}-|{wildcards.condition}_")])]
+        membrane.columns = ["Accession", "Gene_symbol"] + [f"{col}_Membrane" for col in membrane.columns[2:]]
+        membrane = membrane.dropna()
+
+        soluble = pd.read_csv(input.soluble, sep="\t")
+        soluble = soluble[["Accession", "Gene_symbol"] + list(soluble.columns[soluble.columns.str.contains(f"Ctrl1_|{wildcards.condition}-|{wildcards.condition}_")])]
+        soluble.columns = ["Accession", "Gene_symbol"] + [f"{col}_Soluble" for col in soluble.columns[2:]]
+        if wildcards.condition == "HEAT":
+            soluble = soluble.drop("HEAT_3_Soluble", axis=1)
+        soluble = soluble.dropna()
+
+
+        df = soluble.merge(membrane, on=["Accession", "Gene_symbol"])
+        design = {"Name": [], "Treatment": [], "Fraction": [], "Replicate": []}
+        for col in df.columns[2:]:
+            rnase, replicate, fraction = multi_delimiter_split(col, ["-", "_"])
+
+            design["Treatment"].append(wildcards.condition if rnase == wildcards.condition else "Control")
+            design["Replicate"].append(replicate)
+            design["Fraction"].append(fraction)
+            design["Name"].append(col)
+        design = pd.DataFrame(design)
+        df = df.rename({"Gene_symbol": "Gene"}, axis=1)
+        df.to_csv(output.intensities,sep="\t",index=False)
+        design.to_csv(output.design ,sep="\t",index=False)
+

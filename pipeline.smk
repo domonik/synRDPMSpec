@@ -1,22 +1,28 @@
 
 include: "smk/rdeep.smk"
-include: "smk/rdpmspecidentifier.smk"
+include: "smk/rapdor.smk"
 include: "smk/data_prep.smk"
 include: "smk/postProcessingAndPlots.smk"
 
 rule all:
     input:
-        rdeep =  rules.runRDeep.output,
-        rdpmspec = rules.run_rdpmspecidentifier.output,
+        #rdeep =  rules.runRDeep.output,
+        rdpmspec = rules.plotMeanDistribution.output,
+        p = rules.plotBarcodePlot.output,
+
         #joined = expand(rules.plotVennDiagramm.output, ribo=[False, True, "only"]),
         allvenns = rules.plotAllVenns.output,
-        distribution = expand(rules.plotDistribution.output, distributionids=config["distributions"].keys()),
-        bubble_plot = expand(rules.createBubblePlot.output, highlight=["top10"]),
-        rna_binding = rules.extractGORNABinding.output,
-        enrich = rules.GOEnrichment.output,
+        #distribution = expand(rules.plotDistribution.output, distributionids=config["distributions"].keys()),
+        bubble_plot = expand(rules.createBubblePlot.output, highlight=["overlapping"]),
+        #rna_binding = rules.extractGORNABinding.output,
+        #enrich = rules.GOEnrichment.output,
         benchmark = rules.plotRuntime.output,
-        salmonella = rules.prepareSalmonellaData.output
-
+        #salmonella = rules.runIdentifierOnSalmonella.output,
+        syn_cond = expand(rules.runOnSynData.output, condition=["COLD", "HEAT", "DARK", "N", "Fe"]),
+        overlapping_data = rules.extract_overlapping_proteins.output,
+        fig4 = rules.createFigure4.output,
+        table1 = rules.createTable1.output,
+        figs2 = rules.plotConditionedSynechochoColdRibo.output
 
 
 
@@ -41,7 +47,7 @@ rule joinSVMandGradR:
         import plotly.graph_objects as go
         from scipy.stats import spearmanr
         import numpy as np
-        from RDPMSpecIdentifier.plots import COLOR_SCHEMES
+        from RAPDOR.plots import COLOR_SCHEMES
         import plotly.io as pio
         import copy
         from pyfunctions.plotlyVenn import venn_to_plotly

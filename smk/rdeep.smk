@@ -56,7 +56,7 @@ rule runRDeep:
     output:
         outfile = "Pipeline/RDeep/MS_Analysis_Shifts.csv",
         normalized_counts = "Pipeline/RDeep/normalized_rdeep_counts.tsv"
-    benchmark: repeat("Data/benchmarks/rdeepbenchmark.txt", 10),
+    benchmark: repeat("Data/benchmarks/rdeepbenchmark.txt", config["benchmark_repeats"]),
     conda: "../envs/rdeep.yml"
     script:
         "../Rscripts/MS_Statistical_Analysis.R"
