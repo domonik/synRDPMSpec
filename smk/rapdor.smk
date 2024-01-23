@@ -48,7 +48,7 @@ rule ANOSIM_on_synthetic_data:
 rule run_RAPDOR:
     input:
         intensities = rules.prepareinitialData.output.sanitized_df,
-        design = "Data/synDesign.tsv"
+        design = rules.prepareinitialData.output.design
     output:
         tsv = "Pipeline/RAPDORAnalysis/GradRData.tsv",
         json = "Pipeline/RAPDORAnalysis/GradRData.json"

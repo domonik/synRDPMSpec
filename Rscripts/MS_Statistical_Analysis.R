@@ -47,6 +47,8 @@
 # There is a header and the name of the proteins are stored in the first column. The values are separated by a ";"
 file <- snakemake@input[["raw_masspec_rdeep"]]
 outfile <- snakemake@output[["outfile"]]
+outimage <- snakemake@output[["outimage"]]
+
 table <- read.table(file, header=TRUE, row.names=1, sep = ";")
 
 # Run head(table) to see the first lines of the object table.
@@ -104,7 +106,6 @@ table.frxn20 <- table[,data$fraction =="fraction20"]
 # table.frxn23 <- table[,data$fraction =="fraction23"]
 # table.frxn24 <- table[,data$fraction =="fraction24"]
 # table.frxn25 <- table[,data$fraction =="fraction25"]
-
 
 # Re-define the information for the fraction subtables (dataframe named "data3") and create one table per treatment and per fraction. Here there are 50 subtables in total
 data3 <- data.frame(row.names=colnames(table.frxn1), treatment = rep(c("CTRL", "RNASE"),3), condition = c("ctrl1","rnase1","ctrl2","rnase2","ctrl3","rnase3"))
@@ -535,7 +536,7 @@ peaks_reg <- function(x) {
 							vct
 						 }
 						 
-						 
+
 # get the "shoulders" in the curves
 # New column: "peaks" (column 27)
 
@@ -605,6 +606,8 @@ vect <- matrix(c(1:lg), 1, lg)
 
 # Functions to optimize for Gaussian fitting - Gaussians with 1 to 6 peaks
 # Each parameter C, mean and sigma will be optimized for each CTRL and RNASE profile
+
+
 f1 <- function(data, q) {
 					C1 <- q[1]
 					mean1 <- q[2]
@@ -1842,7 +1845,8 @@ ctrl_mean$fit_area <- apply(vect, 2, function(z) {
 												  area_list
 												  }
 							)
-
+print(ctrl_mean$fit_area)
+print("___________________________")
 ctrl_mean$sum_area <- apply(vect, 2, function(z) {
 												 list_area <- as.numeric(unlist(ctrl_mean[z,"fit_area"]))
 												 sum_area <- sum(list_area)
@@ -1967,61 +1971,73 @@ ctrl_mean_corr$fit_param_corr <- apply(vect3, 2, function(x) {
 															  })
 
 # Distribute the corrected fit parameters in respective columns for later usage.
-ctrl_mean_corr$fit_c_corr <- apply(vect3, 2, function(x) {
-															 list_param <- unlist(ctrl_mean_corr[x, "fit_param_corr"])
-															 n <- length(list_param)/3
-															 fit_c <- unlist(matrix(list_param,n, 3, byrow=TRUE)[,1])
-															 fit_c <- as.data.frame(matrix(fit_c,1, length(fit_c), byrow=TRUE))
-															 fit_c
-															 })
+print("HERE")
+print(vect3)
+print(dim(vect3))
 
-ctrl_mean_corr$fit_mean_corr <- apply(vect3, 2, function(x) {
-															 list_param <- unlist(ctrl_mean_corr[x, "fit_param_corr"])
-															 n <- length(list_param)/3
-															 fit_mean <- unlist(matrix(list_param,n, 3, byrow=TRUE)[,2])
-															 fit_mean <- as.data.frame(matrix(fit_mean,1, length(fit_mean), byrow=TRUE))
-															 fit_mean
-															 })
 
-ctrl_mean_corr$fit_sigma_corr <- apply(vect3, 2, function(x) {
-															 list_param <- unlist(ctrl_mean_corr[x, "fit_param_corr"])
-															 n <- length(list_param)/3
-															 fit_s <- unlist(matrix(list_param,n, 3, byrow=TRUE)[,3])
-															 fit_s <- as.data.frame(matrix(fit_s,1, length(fit_s), byrow=TRUE))
-															 fit_s
-															 })
 
-# Function to calculate the area under the curve at a specific peak
-# as defined by the parameters C, Mean and Sigma
+
 gauss_area <- function(x) {
   C <- x[1]
   Mean <- x[2]
   Sigma <- x[3]
   y <- round(seq(1,20,0.2), digits=1)
-  
+
   res <- C * exp(-(y-Mean)**2/(2 * Sigma**2))
-  
+
   res <- round(sum(res)*0.2, digits=1)
   res
 }
 
-ctrl_mean_corr$fit_area <- apply(vect3, 2, function(t) { 
-												  list <- as.numeric(unlist(ctrl_mean_corr[t,"fit_param_corr"]))
-												  n <- length(list)/3
-												  vector <- numeric(0)
-												  area_list <- numeric(0)
-												  
-												  for (i in 1:n) {
-												  				  vector <- list[(i*3-2):(i*3)]
-												  				  area <- gauss_area(vector)
-												  				  area_list <- c(area_list, area)
-												  				  }
-												  unlist(area_list)
-												  area_list <- as.data.frame(matrix(area_list,1, length(area_list), byrow=TRUE))
-												  area_list
-												  })
 
-												  
+if (nrow(ctrl_mean_corr) > 0) {
+	ctrl_mean_corr$fit_c_corr <- apply(vect3, 2, function(x) {
+		list_param <- unlist(ctrl_mean_corr[x, "fit_param_corr"])
+		n <- length(list_param) / 3
+		fit_c <- unlist(matrix(list_param, n, 3, byrow = TRUE)[, 1])
+		fit_c <- as.data.frame(matrix(fit_c, 1, length(fit_c), byrow = TRUE))
+		print(fit_c)
+		fit_c
+	})
+	print("HERE1.5")
+	ctrl_mean_corr$fit_mean_corr <- apply(vect3, 2, function(x) {
+		list_param <- unlist(ctrl_mean_corr[x, "fit_param_corr"])
+		n <- length(list_param) / 3
+		fit_mean <- unlist(matrix(list_param, n, 3, byrow = TRUE)[, 2])
+		fit_mean <- as.data.frame(matrix(fit_mean, 1, length(fit_mean), byrow = TRUE))
+		fit_mean
+	})
+
+	ctrl_mean_corr$fit_sigma_corr <- apply(vect3, 2, function(x) {
+		list_param <- unlist(ctrl_mean_corr[x, "fit_param_corr"])
+		n <- length(list_param) / 3
+		fit_s <- unlist(matrix(list_param, n, 3, byrow = TRUE)[, 3])
+		fit_s <- as.data.frame(matrix(fit_s, 1, length(fit_s), byrow = TRUE))
+		fit_s
+	})
+	print("Here2")
+	# Function to calculate the area under the curve at a specific peak
+	# as defined by the parameters C, Mean and Sigma
+
+
+	ctrl_mean_corr$fit_area <- apply(vect3, 2, function(t) {
+		list <- as.numeric(unlist(ctrl_mean_corr[t, "fit_param_corr"]))
+		n <- length(list) / 3
+		vector <- numeric(0)
+		area_list <- numeric(0)
+
+		for (i in 1:n) {
+			vector <- list[(i * 3 - 2):(i * 3)]
+			area <- gauss_area(vector)
+			area_list <- c(area_list, area)
+		}
+		unlist(area_list)
+		area_list <- as.data.frame(matrix(area_list, 1, length(area_list), byrow = TRUE))
+		area_list
+	})
+}
+print("finished ctrl pb fit correction")
 #***************************************************************************************************												  
 # Same for the rnase table
 rnase_mean_corr <- rnase_mean[rnase_mean$pb_fit == "TRUE",]
@@ -2083,113 +2099,118 @@ rnase_mean_corr$fit_param_corr <- apply(vect4, 2, function(x) {
 															  					}
 															  fit_param
 															  })
+print("Here3")
+if (nrow(rnase_mean_corr) > 0) {
 
-rnase_mean_corr$fit_c_corr <- apply(vect4, 2, function(x) {
-															 list_param <- unlist(rnase_mean_corr[x, "fit_param_corr"])
-															 n <- length(list_param)/3
-															 fit_c <- unlist(matrix(list_param,n, 3, byrow=TRUE)[,1])
-															 fit_c <- as.data.frame(matrix(fit_c,1, length(fit_c), byrow=TRUE))
-															 fit_c
-															 })
+	rnase_mean_corr$fit_c_corr <- apply(vect4, 2, function(x) {
+		list_param <- unlist(rnase_mean_corr[x, "fit_param_corr"])
+		n <- length(list_param) / 3
+		fit_c <- unlist(matrix(list_param, n, 3, byrow = TRUE)[, 1])
+		fit_c <- as.data.frame(matrix(fit_c, 1, length(fit_c), byrow = TRUE))
+		print(fit_c)
+		fit_c
+	})
+	print("here3.5")
+	rnase_mean_corr$fit_mean_corr <- apply(vect4, 2, function(x) {
+		list_param <- unlist(rnase_mean_corr[x, "fit_param_corr"])
+		n <- length(list_param) / 3
+		fit_mean <- unlist(matrix(list_param, n, 3, byrow = TRUE)[, 2])
+		fit_mean <- as.data.frame(matrix(fit_mean, 1, length(fit_mean), byrow = TRUE))
+		fit_mean
+	})
 
-rnase_mean_corr$fit_mean_corr <- apply(vect4, 2, function(x) {
-															 list_param <- unlist(rnase_mean_corr[x, "fit_param_corr"])
-															 n <- length(list_param)/3
-															 fit_mean <- unlist(matrix(list_param,n, 3, byrow=TRUE)[,2])
-															 fit_mean <- as.data.frame(matrix(fit_mean,1, length(fit_mean), byrow=TRUE))
-															 fit_mean
-															 })
+	rnase_mean_corr$fit_sigma_corr <- apply(vect4, 2, function(x) {
+		list_param <- unlist(rnase_mean_corr[x, "fit_param_corr"])
+		n <- length(list_param) / 3
+		fit_s <- unlist(matrix(list_param, n, 3, byrow = TRUE)[, 3])
+		fit_s <- as.data.frame(matrix(fit_s, 1, length(fit_s), byrow = TRUE))
+		fit_s
+	})
 
-rnase_mean_corr$fit_sigma_corr <- apply(vect4, 2, function(x) {
-															 list_param <- unlist(rnase_mean_corr[x, "fit_param_corr"])
-															 n <- length(list_param)/3
-															 fit_s <- unlist(matrix(list_param,n, 3, byrow=TRUE)[,3])
-															 fit_s <- as.data.frame(matrix(fit_s,1, length(fit_s), byrow=TRUE))
-															 fit_s
-															 })
+	rnase_mean_corr$fit_area <- apply(vect4, 2, function(t) {
+		list <- as.numeric(unlist(rnase_mean_corr[t, "fit_param_corr"]))
+		n <- length(list) / 3
+		vector <- numeric(0)
+		area_list <- numeric(0)
 
-rnase_mean_corr$fit_area <- apply(vect4, 2, function(t) { 
-												  list <- as.numeric(unlist(rnase_mean_corr[t,"fit_param_corr"]))
-												  n <- length(list)/3
-												  vector <- numeric(0)
-												  area_list <- numeric(0)
-												  
-												  for (i in 1:n) {
-												  				  vector <- list[(i*3-2):(i*3)]
-												  				  area <- gauss_area(vector)
-												  				  area_list <- c(area_list, area)
-												  				  }
-												  unlist(area_list)
-												  area_list <- as.data.frame(matrix(area_list,1, length(area_list), byrow=TRUE))
-												  area_list
-												  })
+		for (i in 1:n) {
+			vector <- list[(i * 3 - 2):(i * 3)]
+			area <- gauss_area(vector)
+			area_list <- c(area_list, area)
+		}
+		unlist(area_list)
+		area_list <- as.data.frame(matrix(area_list, 1, length(area_list), byrow = TRUE))
+		area_list
+	})
 
-
+}
 #**************************************************************************************************
 # Take care of the edge (for mean values <1 or >25)
-print(ctrl_mean_corr)
-ctrl_mean_corr$fit_mean_fxn <- apply(vect3, 2, function(z) {
-												   list_c <- as.numeric(unlist(ctrl_mean_corr[z,"fit_c_corr"]))
-												   list_mean <- as.numeric(unlist(ctrl_mean_corr[z,"fit_mean_corr"]))
-												   list_sigma <- as.numeric(unlist(ctrl_mean_corr[z,"fit_sigma_corr"]))
-												   n <- length(list_c)
-												   print(n)
-												   print(list_c)
-												   if (list_mean[n] > 20) {list_mean[n] <- 20}
-												   if (list_mean[1] < 1) {list_mean[1] <- 1}
-												   list_mean <- as.data.frame(matrix(list_mean,1, length(list_mean), byrow=TRUE))
-												   list_mean
-												   })
+if (nrow(ctrl_mean_corr) > 0) {
+	ctrl_mean_corr$fit_mean_fxn <- apply(vect3, 2, function(z) {
+		list_c <- as.numeric(unlist(ctrl_mean_corr[z, "fit_c_corr"]))
+		list_mean <- as.numeric(unlist(ctrl_mean_corr[z, "fit_mean_corr"]))
+		list_sigma <- as.numeric(unlist(ctrl_mean_corr[z, "fit_sigma_corr"]))
+		n <- length(list_c)
+		print(n)
+		print(list_c)
+		if (list_mean[n] > 20) { list_mean[n] <- 20 }
+		if (list_mean[1] < 1) { list_mean[1] <- 1 }
+		list_mean <- as.data.frame(matrix(list_mean, 1, length(list_mean), byrow = TRUE))
+		list_mean
+	})
+	print("here 4")
+	ctrl_mean_corr$fit_c_fxn <- apply(vect3, 2, function(z) {
+		list_c <- as.numeric(unlist(ctrl_mean_corr[z, "fit_c_corr"]))
+		list_mean <- as.numeric(unlist(ctrl_mean_corr[z, "fit_mean_corr"]))
+		list_sigma <- as.numeric(unlist(ctrl_mean_corr[z, "fit_sigma_corr"]))
+		n <- length(list_c)
+		if (list_mean[n] > 20) {
+			q <- c(list_c[n], list_mean[n], list_sigma[n])
+			list_c[n] <- (q[1] * exp(-(20 - q[2])**2 / (2 * q[3]**2)))
+		}
+		if (list_mean[1] < 1) {
+			q <- c(list_c[1], list_mean[1], list_sigma[1])
+			list_c[1] <- (q[1] * exp(-(1 - q[2])**2 / (2 * q[3]**2)))
+		}
+		list_c <- as.data.frame(matrix(list_c, 1, length(list_c), byrow = TRUE))
+		list_c
+	})
+}
+if (nrow(rnase_mean_corr) > 0) {
 
-ctrl_mean_corr$fit_c_fxn <- apply(vect3, 2, function(z) {
-												   list_c <- as.numeric(unlist(ctrl_mean_corr[z,"fit_c_corr"]))
-												   list_mean <- as.numeric(unlist(ctrl_mean_corr[z,"fit_mean_corr"]))
-												   list_sigma <- as.numeric(unlist(ctrl_mean_corr[z,"fit_sigma_corr"]))
-												   n <- length(list_c)
-												   if (list_mean[n] > 20) {
-												   						   q <- c(list_c[n],list_mean[n],list_sigma[n])
-															 			   list_c[n] <- (q[1] * exp(-(20-q[2])**2/(2 * q[3]**2)))
-												   						   }
-												   if (list_mean[1] < 1) {
-												   						  q <- c(list_c[1],list_mean[1],list_sigma[1])
-															 			  list_c[1] <- (q[1] * exp(-(1-q[2])**2/(2 * q[3]**2)))
-												   						  }
-												   list_c <- as.data.frame(matrix(list_c,1, length(list_c), byrow=TRUE))
-												   list_c
-												   })												   
+	rnase_mean_corr$fit_mean_fxn <- apply(vect4, 2, function(z) {
+		list_c <- as.numeric(unlist(rnase_mean_corr[z, "fit_c_corr"]))
+		list_mean <- as.numeric(unlist(rnase_mean_corr[z, "fit_mean_corr"]))
+		list_sigma <- as.numeric(unlist(rnase_mean_corr[z, "fit_sigma_corr"]))
+		n <- length(list_c)
+		if (list_mean[n] > 20) { list_mean[n] <- 20 }
+		if (list_mean[1] < 1) { list_mean[1] <- 1 }
+		list_mean <- as.data.frame(matrix(list_mean, 1, length(list_mean), byrow = TRUE))
+		list_mean
+	})
 
-rnase_mean_corr$fit_mean_fxn <- apply(vect4, 2, function(z) {
-												   list_c <- as.numeric(unlist(rnase_mean_corr[z,"fit_c_corr"]))
-												   list_mean <- as.numeric(unlist(rnase_mean_corr[z,"fit_mean_corr"]))
-												   list_sigma <- as.numeric(unlist(rnase_mean_corr[z,"fit_sigma_corr"]))
-												   n <- length(list_c)
-												   if (list_mean[n] > 20) {list_mean[n] <- 20}
-												   if (list_mean[1] < 1) {list_mean[1] <- 1}
-												   list_mean <- as.data.frame(matrix(list_mean,1, length(list_mean), byrow=TRUE))
-												   list_mean
-												   })
-												   
-rnase_mean_corr$fit_c_fxn <- apply(vect4, 2, function(z) {
-												   list_c <- as.numeric(unlist(rnase_mean_corr[z,"fit_c_corr"]))
-												   list_mean <- as.numeric(unlist(rnase_mean_corr[z,"fit_mean_corr"]))
-												   list_sigma <- as.numeric(unlist(rnase_mean_corr[z,"fit_sigma_corr"]))
-												   n <- length(list_c)
-												   if (list_mean[n] > 20) {
-												   						   q <- c(list_c[n],list_mean[n],list_sigma[n])
-															 			   list_c[n] <- (q[1] * exp(-(20-q[2])**2/(2 * q[3]**2)))
-															 			   }
-												   if (list_mean[1] < 1) {
-												   						  q <- c(list_c[1],list_mean[1],list_sigma[1])
-															 			  list_c[1] <- (q[1] * exp(-(1-q[2])**2/(2 * q[3]**2)))
-												   						  }
-												   list_c <- as.data.frame(matrix(list_c,1, length(list_c), byrow=TRUE))
-												   list_c
-												   })
+	rnase_mean_corr$fit_c_fxn <- apply(vect4, 2, function(z) {
+		list_c <- as.numeric(unlist(rnase_mean_corr[z, "fit_c_corr"]))
+		list_mean <- as.numeric(unlist(rnase_mean_corr[z, "fit_mean_corr"]))
+		list_sigma <- as.numeric(unlist(rnase_mean_corr[z, "fit_sigma_corr"]))
+		n <- length(list_c)
+		if (list_mean[n] > 20) {
+			q <- c(list_c[n], list_mean[n], list_sigma[n])
+			list_c[n] <- (q[1] * exp(-(20 - q[2])**2 / (2 * q[3]**2)))
+		}
+		if (list_mean[1] < 1) {
+			q <- c(list_c[1], list_mean[1], list_sigma[1])
+			list_c[1] <- (q[1] * exp(-(1 - q[2])**2 / (2 * q[3]**2)))
+		}
+		list_c <- as.data.frame(matrix(list_c, 1, length(list_c), byrow = TRUE))
+		list_c
+	})
 
-
+}
 #***************************************************************************************************
 # Assemble now all the information
-
+print("Finished all that problemantic fit nonsense")
 # Parts from the original table
 table_ctrl_mean <- ctrl_mean[1:20]
 table_ctrl_mean$ctrl_max <- ctrl_mean$ctrl_max
@@ -2206,6 +2227,9 @@ table_ctrl_mean$fitted <- ctrl_mean$fitted
 table_ctrl_mean$pb_fit <- ctrl_mean$pb_fit
 
 # Parts from the adjusted table
+print("Trying to adjust that stuff")
+if (nrow(ctrl_mean_corr) > 0) {
+
 table_ctrl_mean$ctrl_max_corr <- apply(vect, 2, function(x) {
 															 pos <- rownames(table_ctrl_mean[x,])
 															 max <- 1
@@ -2216,7 +2240,6 @@ table_ctrl_mean$ctrl_max_corr <- apply(vect, 2, function(x) {
 															        }
 															        max
 															 })
-
 table_ctrl_mean$fit_c_corr <- apply(vect, 2, function(x) {
 															 pos <- rownames(table_ctrl_mean[x,])
 															 fit_c <- as.numeric(unlist(ctrl_mean_corr[pos,]$fit_c_corr)*(table_ctrl_mean[pos,"pb_fit"] == "TRUE"))
@@ -2252,7 +2275,7 @@ table_ctrl_mean$fit_c_fxn_corr <- apply(vect, 2, function(x) {
 															 fit_c_fxn <- as.numeric(unlist(ctrl_mean_corr[pos,]$fit_c_fxn)*(table_ctrl_mean[pos,"pb_fit"] == "TRUE"))
 															 fit_c_fxn
 															 })
-
+}
 table_ctrl_mean$nb_max <- apply(vect, 2, function(x) {
 												 		if (table_ctrl_mean[x,"pb_fit"] == "FALSE") {ls_max <- as.numeric(unlist(table_ctrl_mean[x,"fit_mean_fxn"])) }
 												 		else {ls_max <- as.numeric(unlist(table_ctrl_mean[x,"fit_mean_fxn_corr"]))}
@@ -2280,6 +2303,8 @@ table_rnase_mean$fitted <- rnase_mean$fitted
 table_rnase_mean$pb_fit <- rnase_mean$pb_fit
 
 # Parts from the adjusted table
+if (nrow(rnase_mean_corr) > 0) {
+
 table_rnase_mean$rnase_max_corr <- apply(vect, 2, function(x) {
 															 pos <- rownames(table_rnase_mean[x,])
 															 max <- as.numeric(unlist(rnase_mean_corr[pos,]$rnase_max)*(table_rnase_mean[pos,"pb_fit"] == "TRUE"))
@@ -2321,7 +2346,7 @@ table_rnase_mean$fit_c_fxn_corr <- apply(vect, 2, function(x) {
 															 fit_c_fxn <- as.numeric(unlist(rnase_mean_corr[pos,]$fit_c_fxn)*(table_rnase_mean[pos,"pb_fit"] == "TRUE"))
 															 fit_c_fxn
 															 })
-															 
+}
 table_rnase_mean$nb_max <- apply(vect, 2, function(x) {
 												 		if (table_rnase_mean[x,"pb_fit"] == "FALSE") {ls_max <- as.numeric(unlist(table_rnase_mean[x,"fit_mean_fxn"])) }
 												 		else {ls_max <- as.numeric(unlist(table_rnase_mean[x,"fit_mean_fxn_corr"]))}
@@ -3473,8 +3498,8 @@ for (i in 2:(prot_lg)) {
 														   															  }
 						}
 
-quit()
 # Read the final table from the file
+quit()
 #**************************************************************************************************					
 MS_Analysis_table <- read.table(outfile, header = TRUE, sep = ";")
 
@@ -3494,18 +3519,18 @@ library(gridExtra)
 library(lattice)
 
 # Curves for a particular protein
-# pos = "CTCF_HUMAN"
+pos = "417"
 
 
 # define a function to calculate gaussian fit of the curves
 #***************************************************************************************************
 gauss_fit_fun_ctrl <- function(t) { 
-												  dffit <- data.frame(y=round(seq(1, 25, 0.5),digits=1))
+												  dffit <- data.frame(y=round(seq(1, 20, 0.5),digits=1))
 												  list_c <- as.numeric(unlist(ctrl_mean[t,"fit_c"]))
 												  list_mean <- as.numeric(unlist(ctrl_mean[t,"fit_mean"]))
 												  list_sigma <- as.numeric(unlist(ctrl_mean[t,"fit_sigma"]))
 												  n <- length(list_c)
-												  z <- round(seq(1, 25, 0.5),digits=1)
+												  z <- round(seq(1, 20, 0.5),digits=1)
 												  
 												  if (rnase_mean[t,"fitted"] == "FALSE") {dffit$df.y <- rep(0,49)} else {
 												  											if (n==1) {
@@ -3604,12 +3629,12 @@ gauss_fit_fun_ctrl <- function(t) {
 	
 #***************************************************************************************************	
 gauss_fit_fun_rnase <- function(t) { 
-												  dffit <- data.frame(y=round(seq(1, 25, 0.5),digits=1))
+												  dffit <- data.frame(y=round(seq(1, 20, 0.5),digits=1))
 												  list_c <- as.numeric(unlist(rnase_mean[t,"fit_c"]))
 												  list_mean <- as.numeric(unlist(rnase_mean[t,"fit_mean"]))
 												  list_sigma <- as.numeric(unlist(rnase_mean[t,"fit_sigma"]))
 												  n <- length(list_c)
-												  z <- round(seq(1, 25, 0.5),digits=1)
+												  z <- round(seq(1, 20, 0.5),digits=1)
 												  
 												  if (rnase_mean[t,"fitted"] == "FALSE") {dffit$df.y <- rep(0,49)} else {
 												  											if (n==1) {
@@ -3710,9 +3735,9 @@ gauss_fit_fun_rnase <- function(t) {
 #***************************************************************************************************
 # Standard deviation for each mean curve for graphics
 ctrl_norm_sd <- t(apply(vect, 2, function(x) { 
-											list <- rep(0,25)
+											list <- rep(0,20)
 											if (table_ctrl_mean[x, "fitted"] == "FALSE") {list <- list} else {
-																										for (i in 1:25) {
+																										for (i in 1:20) {
 																									    				list[i] <- sd(c(table.ctrl1.SW.norm[x,i],table.ctrl2.SW.norm[x,i],table.ctrl3.SW.norm[x,i]),na.rm=TRUE)
 															 															}
 															 										  }					
@@ -3725,9 +3750,9 @@ ctrl_norm_sd <- as.data.frame(ctrl_norm_sd)
 
 
 rnase_norm_sd <- t(apply(vect, 2, function(x) { 
-											list <- rep(0,25)
+											list <- rep(0,20)
 											if (table_rnase_mean[x, "fitted"] == "FALSE") {list <- list} else {
-																										for (i in 1:25) {
+																										for (i in 1:20) {
 																									    				list[i] <- sd(c(table.ctrl1.SW.norm[x,i],table.ctrl2.SW.norm[x,i],table.ctrl3.SW.norm[x,i]),na.rm=TRUE)
 															 															}
 															 										  }					
@@ -3754,7 +3779,7 @@ curves_plot <- function(pos) {
       fit_mean_ctrl <- as.numeric(unlist(table_ctrl_mean[pos,"fit_mean_corr"]))
       fit_sigma_ctrl <- as.numeric(unlist(table_ctrl_mean[pos,"fit_sigma_corr"]))
       n <- length(fit_c_ctrl)
-      Fractions <- round(seq(1,25,0.5),digits=1)
+      Fractions <- round(seq(1,20,0.5),digits=1)
       dfpb_ctrl <- as.data.frame(Fractions)
       plot_ctrl <- ggplot()
       
@@ -3772,7 +3797,7 @@ curves_plot <- function(pos) {
         fit_mean_rnase <- as.numeric(unlist(table_rnase_mean[pos,"fit_mean_corr"]))
         fit_sigma_rnase <- as.numeric(unlist(table_rnase_mean[pos,"fit_sigma_corr"]))
         n <- length(fit_c_rnase)
-        Fractions <- round(seq(1,25,0.5),digits=1)
+        Fractions <- round(seq(1,20,0.5),digits=1)
         dfpb_rnase <- as.data.frame(Fractions)
         plot_rnase <- ggplot()
         
@@ -3790,7 +3815,7 @@ curves_plot <- function(pos) {
           fit_mean_ctrl <- as.numeric(unlist(table_ctrl_mean[pos,"fit_mean_corr"]))
           fit_sigma_ctrl <- as.numeric(unlist(table_ctrl_mean[pos,"fit_sigma_corr"]))
           n <- length(fit_c_ctrl)
-          Fractions <- round(seq(1,25,0.5),digits=1)
+          Fractions <- round(seq(1,20,0.5),digits=1)
           dfpb_ctrl <- as.data.frame(Fractions)
           plot_CR <- ggplot()
           
@@ -3803,7 +3828,7 @@ curves_plot <- function(pos) {
           fit_mean_rnase <- as.numeric(unlist(table_rnase_mean[pos,"fit_mean_corr"]))
           fit_sigma_rnase <- as.numeric(unlist(table_rnase_mean[pos,"fit_sigma_corr"]))
           n <- length(fit_c_rnase)
-          Fractions <- round(seq(1,25,0.5),digits=1)
+          Fractions <- round(seq(1,20,0.5),digits=1)
           dfpb_rnase <- as.data.frame(Fractions)
           
           for (i in 1:n) {
@@ -3822,24 +3847,24 @@ curves_plot <- function(pos) {
     }					
     
     # raw data - Amounts 
-    x <- c(1:25)
-    ctrl <- as.numeric(ctrl_norm_mean[pos,1:25])
+    x <- c(1:20)
+    ctrl <- as.numeric(ctrl_norm_mean[pos,1:20])
     title <- pos
     ctrl <- as.numeric(ctrl)
     df_ctrl <- data.frame(x, ctrl)
     colnames(df_ctrl) <- c("Fractions","Amount")
-    rnase <- as.numeric(rnase_norm_mean[pos,1:25])
+    rnase <- as.numeric(rnase_norm_mean[pos,1:20])
     df_rnase <- data.frame(x, rnase)
     colnames(df_rnase) <- c("Fractions","Amount")
     
     # standard deviation of mean values
     df_sd_ctrl <- df_ctrl
-    df_sd_ctrl$upper <- ctrl + as.numeric(ctrl_norm_sd[pos,1:25])
-    df_sd_ctrl$lower <- ctrl - as.numeric(ctrl_norm_sd[pos,1:25])
+    df_sd_ctrl$upper <- ctrl + as.numeric(ctrl_norm_sd[pos,1:20])
+    df_sd_ctrl$lower <- ctrl - as.numeric(ctrl_norm_sd[pos,1:20])
     
     df_sd_rnase <- df_rnase
-    df_sd_rnase$upper <- rnase + as.numeric(rnase_norm_sd[pos,1:25])
-    df_sd_rnase$lower <- rnase - as.numeric(rnase_norm_sd[pos,1:25])
+    df_sd_rnase$upper <- rnase + as.numeric(rnase_norm_sd[pos,1:20])
+    df_sd_rnase$lower <- rnase - as.numeric(rnase_norm_sd[pos,1:20])
     
     # scatterPlot - depending on the "fitted", "fit_res", "pb_fit" values	
     
@@ -3888,7 +3913,7 @@ curves_plot <- function(pos) {
         theme(panel.background = element_rect(fill = "white", color = "darkred", size = 3), panel.grid.major = element_line(colour = "lightgrey"), panel.grid.minor = element_line(colour = "lightgrey")) +
         
         # x-axis scale and ticks
-        scale_x_discrete(name ="Fractions", limits=c("1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25"))
+        scale_x_discrete(name ="Fractions", limits=c("1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"))
       
       
       
@@ -3939,7 +3964,7 @@ curves_plot <- function(pos) {
           theme(panel.background = element_rect(fill = "white", color = "darkred", size = 3), panel.grid.major = element_line(colour = "lightgrey"), panel.grid.minor = element_line(colour = "lightgrey")) +
           
           # x-axis scale and ticks
-          scale_x_discrete(name ="Fractions", limits=c("1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25"))
+          scale_x_discrete(name ="Fractions", limits=c("1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"))
         
         
       } else {
@@ -3989,7 +4014,7 @@ curves_plot <- function(pos) {
             theme(panel.background = element_rect(fill = "white", color = "darkred", size = 3), panel.grid.major = element_line(colour = "lightgrey"), panel.grid.minor = element_line(colour = "lightgrey")) +
             
             # x-axis scale and ticks
-            scale_x_discrete(name ="Fractions", limits=c("1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25"))
+            scale_x_discrete(name ="Fractions", limits=c("1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"))
           
           
         } else {
@@ -4100,7 +4125,7 @@ curves_plot <- function(pos) {
               theme(panel.background = element_rect(fill = "white"), panel.grid.major = element_line(colour = "lightgrey"), panel.grid.minor = element_line(colour = "lightgrey"), axis.title.y = element_text(color="black", face="bold"), plot.margin = margin(t=1, r=0, b=1, l=0, "cm"))  +
               
               # x-axis scale and ticks
-              scale_x_discrete(name ="Fractions", limits=c("1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25"))
+              scale_x_discrete(name ="Fractions", limits=c("1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"))
             
             
             
@@ -4111,11 +4136,11 @@ curves_plot <- function(pos) {
     
     
     # plot a raster with ggplot
-    dataf1 <- data.frame(ctrl_norm_mean[pos,1:25],rnase_norm_mean[pos,1:25])
-    r1 <- raster(xmn=0, xmx = 25, ymn = 0, ymx = 1, nrows = 1, ncols = 25)
-    r2 <- raster(xmn=0, xmx = 25, ymn = 0, ymx = 1, nrows = 1, ncols = 25)
-    r1[] <- as.numeric(dataf1[1,1:25])
-    r2[] <- as.numeric(dataf1[1,26:50])
+    dataf1 <- data.frame(ctrl_norm_mean[pos,1:20],rnase_norm_mean[pos,1:20])
+    r1 <- raster(xmn=0, xmx = 20, ymn = 0, ymx = 1, nrows = 1, ncols = 20)
+    r2 <- raster(xmn=0, xmx = 20, ymn = 0, ymx = 1, nrows = 1, ncols = 20)
+    r1[] <- as.numeric(dataf1[1,1:20])
+    r2[] <- as.numeric(dataf1[1,21:40])
     r.spdf1 <- as(r1, "SpatialPixelsDataFrame")
     r1.df <- as.data.frame(r.spdf1)
     colnames(r1.df) <- c("Amount","Fraction","ctrl")
@@ -4124,8 +4149,8 @@ curves_plot <- function(pos) {
     colnames(r2.df) <- c("Amount","Fractions","RNases")
     
     # now plot the whole
-    plot1 <- ggplot(r1.df, aes(x=Fraction+0.5, y=ctrl)) + geom_tile(aes(fill = Amount)) + coord_equal(2) + theme(legend.position="none") + scale_fill_gradient(low="white", high="green") + theme(axis.text.y=element_blank(), axis.ticks.y=element_blank(), axis.title.x=element_blank()) + scale_x_continuous(breaks=c(seq(1,25,by=1)))
-    plot2 <- ggplot(r2.df, aes(x=Fractions+0.5, y=RNases)) + geom_tile(aes(fill = Amount)) + coord_equal(2) + theme(legend.position="none") + scale_fill_gradient(low="white", high="red") + theme(axis.text.y=element_blank(), axis.ticks.y=element_blank(), axis.title.x=element_blank()) + scale_x_continuous(breaks=c(seq(1,25,by=1)))
+    plot1 <- ggplot(r1.df, aes(x=Fraction+0.5, y=ctrl)) + geom_tile(aes(fill = Amount)) + coord_equal(2) + theme(legend.position="none") + scale_fill_gradient(low="white", high="green") + theme(axis.text.y=element_blank(), axis.ticks.y=element_blank(), axis.title.x=element_blank()) + scale_x_continuous(breaks=c(seq(1,20,by=1)))
+    plot2 <- ggplot(r2.df, aes(x=Fractions+0.5, y=RNases)) + geom_tile(aes(fill = Amount)) + coord_equal(2) + theme(legend.position="none") + scale_fill_gradient(low="white", high="red") + theme(axis.text.y=element_blank(), axis.ticks.y=element_blank(), axis.title.x=element_blank()) + scale_x_continuous(breaks=c(seq(1,20,by=1)))
     
     # combine all graphics in one panel
     grid.arrange(scatterPlot, plot1, plot2, ncol=1, nrow=3, heights=c(1.5,.5,.5), bottom = "Fractions")
@@ -4143,7 +4168,10 @@ curves_plot <- function(pos) {
   # end of the function "curves_plot()" - curves_plot("CTCF_HUMAN")
 }
 
+plt <- curves_plot(pos)
+ggsave(outimage, plt)
 
+quit()
 #**************************************************************************************************
 #### GRAPHICS 2 - all curves for one protein of interest                                       ####
 #**************************************************************************************************

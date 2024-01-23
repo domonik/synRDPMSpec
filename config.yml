@@ -1,11 +1,14 @@
 
+intensities: "Data/synIntensitiesIBAQ.tsv"
+design: "Data/synDesignIBAQ.tsv"
+
 distributions:
-  ribosomal: [447, 870, 406, 869, 405, 866, 1548, 404]
+  rplA: [447]
   rna_binding:
     GO RNA-binding: true
     ribosomal protein: false
 
-benchmark_repeats:  10
+benchmark_repeats:  1
 
 font_size: 10
 width: 624

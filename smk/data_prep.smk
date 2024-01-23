@@ -5,8 +5,8 @@ ORGANISMID = f"{config['genus']}.{config['species']}_taxid{config['tax_id']}"
 
 rule multiplyData:
     input:
-        intensities = "Data/synIntensities.tsv",
-        design = "Data/synDesign.tsv"
+        intensities = config["design"],
+        design = config["intensities"]
     output:
         multipleIntensities = "Pipeline/BenchmarkData/synIntensitiesFake.tsv",
         multipleDesign = "Pipeline/BenchmarkData/synDesignFake.tsv",
@@ -21,19 +21,18 @@ rule multiplyData:
         replicates = []
         newcols = {"index": intensities.iloc[:, 0]}
         for x in intensities.columns:
-            if x.startswith("LFQ intensity RNAse_") and "peptides" not in x:
-                print(x)
+            if x.startswith("ctrl") or x.startswith("rnase"):
+                d = x.split("-")
                 d = x.split("LFQ intensity RNAse_")[1].split("_")
                 print(d)
-                if len(d) == 3:
+                if len(d[0]) == 6:
                     RNase = True
-                    d = d[1:]
                 else:
                     RNase = False
-                print(d)
-                frac = int(d[0])
+                d = d[0][:-1]
+                frac = int(d[1])
                 for nr in range(3):
-                    br = d[1] + f".{nr}"
+                    br = d[0][-1] + f".{nr}"
                     fakedata = intensities[x].sample(frac=1).values
                     name = x + f".{nr}"
 
@@ -155,14 +154,17 @@ rule prepareSalmonellaData:
 
 rule prepareinitialData:
     input:
-        file = "Data/synIntensities.tsv",
+        file = config["intensities"],
+        design = config["design"],
         uniprot = "Data/GOAnno.tsv",
         go_binders = rules.extractGORNABinding.output.file
     output:
-        sanitized_df = "Pipeline/sanitized_df.tsv"
+        sanitized_df = "Pipeline/sanitized_df.tsv",
+        design = "Pipeline/sanitized_design.tsv"
     run:
         import pandas as pd
         go_table = pd.read_csv(input.go_binders, sep="\t")
+        design = pd.read_csv(input.design, sep="\t")
 
         rapdor_table = pd.read_csv(input.file, sep="\t")
         uniprot_anno = pd.read_csv(input.uniprot, sep="\t")
@@ -176,11 +178,21 @@ rule prepareinitialData:
         rapdor_table["small_ribosomal"] = rapdor_table["Gene"].str.contains(r'\b(rps|Rps)(?![1-9][A-Za-z])',case=False)
         rapdor_table["large_ribosomal"] = rapdor_table["Gene"].str.contains(r'\b(rpl|Rpl)', case=False)
         rapdor_table["photosystem"] = rapdor_table["Gene"].str.contains(r'\b(psb|psa)', case=False)
+        poly_tags = r"|".join([
+            "ssl2982", "sll1789", "sll1689", "slr0653", "sll0722", "sll0184", "slr1564", "slr1545", "slr1861", "ssr1600", "slr1859"
+        ])
+        rapdor_table["RNA ploymerase"] = (rapdor_table["Gene"].str.contains(r'\b(Rpo)', case=False) | rapdor_table["old_locus_tag"].str.contains(poly_tags, case=False))
         rapdor_table["ribosomal protein"] = (rapdor_table["large_ribosomal"] | rapdor_table["small_ribosomal"])
         rapdor_table = rapdor_table.merge(go_table, on="old_locus_tag", how="left")
-
         rapdor_table["ribosomal protein"] = ((rapdor_table["Gene"].str.contains('rpl|rps|Rpl|Rps', case=False)) | (rapdor_table['ProteinFunction'].str.contains('ribosomal protein', case=False)))
+
+        # rapdor_table = rapdor_table.drop([f"rnase{idx}-20" for idx in range(1, 4)], axis=1)
+        # rapdor_table = rapdor_table.drop([f"ctrl{idx}-20" for idx in range(1, 4)], axis=1)
+        # design = design[~design["Name"].isin([f"ctrl{idx}-20" for idx in range(1, 4)])]
+        # design = design[~design["Name"].isin([f"rnase{idx}-20" for idx in range(1, 4)])]
+
         rapdor_table.to_csv(output.sanitized_df, sep="\t", index=False)
+        design.to_csv(output.design, sep="\t", index=False)
 
 
 

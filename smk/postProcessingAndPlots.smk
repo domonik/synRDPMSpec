@@ -5,6 +5,9 @@ include: "benchmarking.smk"
 from RAPDOR.plots import DEFAULT_TEMPLATE, COLOR_SCHEMES
 
 
+DEFAULT_COLORS = COLOR_SCHEMES["Dolphin"]
+
+
 rule joinAnalysisMethods:
     input:
         svm = "Data/svm.tsv",
@@ -69,7 +72,6 @@ rule extract_overlapping_proteins:
                 "RAPDORid",
                 "old_locus_tag",
                 "Gene",
-                "Locus tag",
                 "ProteinFunction",
                 "ANOSIM R",
                 "Mean Distance",
@@ -195,7 +197,7 @@ rule plotDistribution:
         file = rules.run_RAPDOR.output.json,
         joined = rules.joinAnalysisMethods.output.file
     output:
-        svg = "Pipeline/plots/Distribution_ids{distributionids}.svg"
+        svg = "Pipeline/Paper/Subfigures/Distribution_ids{distributionids}.svg"
     run:
         from RAPDOR.datastructures import RAPDORData
         import pandas as pd
@@ -213,21 +215,172 @@ rule plotDistribution:
                 df = df[df[key] == value]
             tcol = "old_locus_tag"
             rapdorids = df["RAPDORid"]
-        rows = math.ceil(len(rapdorids)/2)
-        fig = plot_protein_distributions(rapdorids, rapdordata=data, colors=COLOR_SCHEMES["Dolphin"], title_col=tcol, cols=2, rows=rows, vertical_spacing=0.1 * (1/rows), horizontal_spacing=0.075)
+        rows = len(rapdorids)
+        fig = plot_protein_distributions(rapdorids, rapdordata=data, colors=COLOR_SCHEMES["Dolphin"], title_col=tcol, cols=1, rows=rows, vertical_spacing=0.1 * (1/rows), horizontal_spacing=0.075)
         fig.update_layout(template=DEFAULT_TEMPLATE, legend1=dict(y=1.02))
-        fig.update_yaxes(mirror=True, tickfont=dict(size=12))
-        fig.update_xaxes(mirror=True, dtick=1, tickfont=dict(size=12))
+        fig.update_yaxes(mirror=True, tickfont=dict(size=config["font_size"]))
+        fig.update_xaxes(mirror=True, dtick=1, tickfont=dict(size=config["font_size"]))
+        fig.update_traces(line=dict(width=2), marker=dict(size=3))
         fig.update_layout(
-            font=dict(size=16),
+            font=dict(size=config["font_size"]),
         )
-        fig.update_layout(width=1200, height=150 * rows,
+        fig.update_layout(width=config["width"],height=150,
             legend2=dict(
-                   y=1 + 0.4 * (1/rows)
-            )
+                y=1.05,
+                x=0.01,
+                yanchor="top",
+                font=dict(size=config["font_size"]),
+                itemsizing='trace',
+                bgcolor='rgba(0,0,0,0)'
+            ),
+            legend=dict(
+                y=0.9,
+                x=0.01,
+                yanchor="top",
+                font=dict(size=config["font_size"]),
+                itemsizing='trace',
+                bgcolor='rgba(0,0,0,0)'
+            ),
+            margin=dict(b=50, t=20, r= 30, l=30)
         )
+        for anno in fig.layout.annotations:
+            if anno.text == "Fraction":
+                anno.update(y = anno.y + 0.1, font=dict(size=config["font_size"]))
+            if anno.text == "rel. Protein Intensities":
+                anno.update(font=dict(size=config["font_size"]), x = anno.x + 0.04)
+
+
 
         fig.write_image(output.svg)
+
+rule rplaDistribution:
+    input:
+        file = rules.run_RAPDOR.output.json,
+        ctrl_img = "Data/Westernblot_ctrl.png",
+        rnase_img = "Data/Westernblot_rnase.png",
+    output:
+        svg="Pipeline/Paper/rplAFigure.svg"
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        from PIL import Image
+        from RAPDOR.plots import plot_distribution, plot_barcode_plot, COLOR_SCHEMES
+        from plotly.subplots import make_subplots
+        import plotly.graph_objs as go
+
+        with open(input.file) as handle:
+            data = RAPDORData.from_json(handle.read())
+        rpla = data.df[data.df["Gene"] == "rplA"]["RAPDORid"]
+        subdata = data.norm_array[data[rpla][0]]
+        subdata2 = data.array[data[rpla][0]]
+        row_heights = [0.5, 0.15, 0.15, 0.1, 0.1]
+        fig = make_subplots(rows=5, cols=1, shared_xaxes=True, vertical_spacing=0.01, row_heights=row_heights)
+        idesign = data.internal_design_matrix[data.internal_design_matrix["Replicate"] == "BR1"]
+        fig1 = plot_distribution(subdata, data.internal_design_matrix, offset=data.state.kernel_size // 2, colors=COLOR_SCHEMES["Dolphin"], show_outliers=False)
+        fig2 = plot_barcode_plot(subdata2, idesign, colors=COLOR_SCHEMES["Dolphin"], fractions=data.fractions, scale_max=False)
+        fig.update_yaxes(fig1.layout.yaxis, row=1)
+        for trace in fig1["data"]:
+            t = "Control" if trace.legend == "legend" else "RNase"
+            trace.update(
+                line=dict(width=2),
+                marker=dict(size=3),
+                showlegend=True,
+                legend="legend",
+                legendgroup=t,
+                legendgrouptitle=dict(font=dict(size=config["font_size"]), text=t)
+            )
+            fig.add_trace(trace, row=1, col=1)
+        for i_idx, trace in enumerate(fig2["data"]):
+            v = row_heights[1] + row_heights[2]
+
+            trace.colorbar.update(
+                len=v,
+                yref="paper",
+                y=row_heights[0] - v * (i_idx // 2),
+                yanchor="top",
+                nticks=5,
+                x=1. + 0.05 if i_idx % 2 else 1.,
+                showticklabels=True,
+                thickness=0.05,
+                thicknessmode="fraction",
+                ticklabelposition="inside",
+                title=dict(text="iBAQ BR1" if i_idx == 0 else "-", font=dict(size=10, color="rgba(0,0,0,0)" if i_idx else None)),
+                tickfont=dict(color="black"),
+                outlinewidth=1,
+                outlinecolor="black"
+
+            )
+            fig.add_trace(trace,row=2 + i_idx, col=1)
+
+        for row in [4, 5]:
+            fig.update_yaxes(range=[0, 1], row=row)
+            cat = ["Control" if row == 4 else "RNase"]
+            fig.update_yaxes(row=row,showgrid=False, autorange="reversed", categoryorder='total ascending', categoryarray=cat)
+
+            fig.add_trace(
+                go.Bar(
+                    x=[20],
+                    y = cat,
+                    marker=dict(color= "rgba(0,0,0,0)"),
+                    orientation="h",
+                    showlegend=False
+                ),
+                row=row, col=1
+            )
+        for row in range(2, 6):
+            fig.update_yaxes(row=row,showgrid=False)
+            fig.update_xaxes(row=row,showgrid=False)
+
+
+        ctrl_western = Image.open(input.ctrl_img)
+        rnase_western = Image.open(input.rnase_img)
+        fig.add_layout_image(dict(
+            source=ctrl_western,
+            x=0,
+            y=0.5,
+            xref="x4 domain",
+            yref="y4 domain",
+            xanchor="left",
+            yanchor="middle",
+
+        )
+        )
+        fig.add_layout_image(dict(
+            source=rnase_western,
+            x=0,
+            y=0.5,
+            xref="x5 domain",
+            yref="y5 domain",
+            xanchor="left",
+            yanchor="middle",
+        )
+        )
+        fig.update_layout_images(dict(
+            sizex=1,
+            sizey=1,
+            sizing="fill"
+
+        ))
+        fig.update_xaxes(dtick=1)
+        fig.update_layout(template=DEFAULT_TEMPLATE, height=500, width=config["width"], font=dict(size=config["font_size"]))
+        fig.update_yaxes(row=4, showgrid=False)
+
+        fig.update_yaxes( row=5, showgrid=False)
+        fig.update_xaxes(title = "Fraction", row=5, range=[0.5, 20.5])
+        fig.update_layout(legend=dict(font=dict(size=8), tracegroupgap=0, orientation="v", x=1.005, y=1, xanchor="left", yanchor="top"))
+        fig.add_annotation(
+            text="Anti-RplA",
+            xref="paper",
+            yref="paper",
+            x=1.005,
+            y=row_heights[-1],
+            yanchor="middle",
+            xanchor="left",
+            showarrow=False
+        )
+        fig.write_image(output.svg)
+
+
+
 
 
 rule plotMeanDistribution:
@@ -239,16 +392,18 @@ rule plotMeanDistribution:
         from RAPDOR.datastructures import RAPDORData
         import pandas as pd
         import math
-        from RAPDOR.plots import multi_means_and_histo, COLOR_SCHEMES, DEFAULT_TEMPLATE
+        from RAPDOR.plots import multi_means_and_histo, COLOR_SCHEMES, DEFAULT_TEMPLATE, plot_distance_histo
 
         with open(input.file) as handle:
             data = RAPDORData.from_json(handle.read())
         ids = data.df[data.df["small_ribosomal"] == True]["RAPDORid"]
         ids2 = data.df[data.df["large_ribosomal"] == True]["RAPDORid"]
         ids3 = data.df[data.df["photosystem"] == True]["RAPDORid"]
-        print(ids, ids2, ids3)
-        d = {"small subunit": ids, "large subunit": ids2, "photosystem": ids3}
-        fig = multi_means_and_histo(d, data, colors=COLOR_SCHEMES["Dolphin"] + COLOR_SCHEMES["Viking"])
+        ids4 = data.df[data.df["RNA ploymerase"] == True]["RAPDORid"]
+        d = {"small subunit": ids, "large subunit": ids2, "photosystem": ids3, "RNA polymerase": ids4}
+        fig = multi_means_and_histo(d, data, colors=COLOR_SCHEMES["Dolphin"] + COLOR_SCHEMES["Viking"], row_heights=[0.2, 0.2, 0.6], vertical_spacing=0.08)
+        fig.update_yaxes(row=3, range=[0, 0.6])
+        fig.update_yaxes(row=1, dtick=0.4)
         fig.update_traces(
             marker_color="lightgrey",
             marker_line=dict(width=0.5,color='black'),
@@ -259,66 +414,46 @@ rule plotMeanDistribution:
             marker_line=dict(width=0.5,color='black'),
             row=2
         )
+        fig.update_layout(height=300)
         fig.write_image(output.svg)
 
 
 rule plotBarcodePlot:
     input:
-        file = rules.joinAnalysisMethods.output.file
+        file = rules.joinAnalysisMethods.output.file,
+        rapdor = rules.run_RAPDOR.output.json
     output:
         svg = "Pipeline/Paper/Subfigures/ribosomalIdentifier.svg"
     run:
         import plotly.graph_objs as go
         import pandas as pd
         import numpy as np
+        from RAPDOR.plots import rank_plot
+        from RAPDOR.datastructures import RAPDORData
+
+        with open(input.rapdor) as handle:
+            data = RAPDORData.from_json(handle.read())
+
+
         df = pd.read_csv(input.file, sep="\t")
         #df = df[df["ribosomal protein"] == True]
         df = df.sort_values(by="Rank", ascending=True)
         df = df[~df["ANOSIM R"].isna()]
         x = list(range(df["Rank"].min(), df.Rank.max()+1))
-        small_subunit = (df["small_ribosomal"] == True).to_numpy().astype(float)
-        small_subunit[small_subunit == 0] = np.nan
-        large_subunit = (df["large_ribosomal"] == True).to_numpy().astype(float)
-        large_subunit[large_subunit == 0] = np.nan
-        photosystem = (df["photosystem"] == True).to_numpy().astype(float)
-        photosystem[photosystem == 0] = np.nan
-        fig = go.Figure()
+        small_subunit = df[df["small_ribosomal"] == True]["RAPDORid"]
+        large_subunit = df[df["large_ribosomal"] == True]["RAPDORid"]
+        photosystem = df[df["photosystem"] == True]["RAPDORid"]
         colors = (COLOR_SCHEMES["Dolphin"][0], COLOR_SCHEMES["Dolphin"][1], COLOR_SCHEMES["Viking"][0])
-        triangles = []
-        tri_x = 25
-        tri_y = 0.1
 
-        for idx, (key, data) in enumerate({"small subunit": small_subunit, "large subunit": large_subunit, "photosystem": photosystem}.items()):
+        d = {"small subunit": small_subunit, "large subunit": large_subunit, "photosystem": photosystem}
+        fig = rank_plot(d, data, colors)
 
-            fig.add_trace(
-                go.Bar(
-                    x=x,
-                    y=data,
-                    marker_color=colors[idx],
-                    marker_line=dict(width=2,color=colors[idx]),
-                    name=key,
-                    hovertext=df["Gene"],
+        fig.update_layout(
+            margin=dict(b=15, t=20, r= 30, l=30), width=config["width"], height=130,
+            legend=dict(bgcolor = 'rgba(0,0,0,0)')
 
-                )
-            )
-            tri = np.nanmedian((data * np.asarray(x)))
-            triangles.append(
-                go.Scatter(
-                    x=[tri-tri_x, tri, tri+tri_x, tri-tri_x],
-                    y=[0, tri_y, 0, 0],
-                    mode="lines",
-                    fill="toself",
-                    fillcolor=colors[idx],
-                    marker_color=colors[idx],
-                    showlegend=False
-                )
-            )
-        fig.add_traces(triangles)
-        fig.update_layout(barmode="overlay", bargap=0, template=DEFAULT_TEMPLATE, width=config["width"], height=config["height"] / 2)
-        fig.update_layout(margin=dict(r=10, l=10, t=0, b=0),
-            legend=dict(orientation="h", y=1.02, yanchor="bottom", x=1, xanchor="right"))
-        fig.update_xaxes(range=(x[0], x[-1]), title="Rank", mirror=True, showline=True, linecolor="black", showgrid=False)
-        fig.update_yaxes(range=(0, 1), mirror=True, showline=True, showticklabels=False, linecolor="black", showgrid=False)
+        )
+
         #fig.show()
         fig.write_image(output.svg)
 
@@ -633,3 +768,161 @@ rule plotConditionedSynechochoColdRibo:
 
         fig.write_image(output.svg2)
         fig.write_html(output.html2)
+
+
+rule analyzeProteinAbundance:
+    input:
+        json=rules.run_RAPDOR.output.json,
+    output:
+        svg = "Pipeline/Paper/Subfigures/AbundanceDistribution.svg",
+
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        from scipy.stats import pearsonr
+        import numpy as np
+        import plotly.graph_objs as go
+        from sklearn.decomposition import PCA
+
+        file = input.json
+        with open(file) as handle:
+            data = RAPDORData.from_json(handle.read())
+        array = data.norm_array[:-1]
+        #array = np.swapaxes(array, 1, 2)
+        cov = np.cov(array[0], rowvar=False)
+        covariance_matrices = np.empty((array.shape[0], array.shape[-1], array.shape[-1]))
+        for i in range(array.shape[0]):
+            # Get the data for the current experiment
+            experiment_data = array[i]
+
+            # Calculate the covariance matrix for the current experiment
+            covariance_matrix = np.cov(experiment_data,rowvar=False)
+
+            # Store the covariance matrix in the array
+            covariance_matrices[i] = covariance_matrix
+        print(cov.shape)
+        print(covariance_matrices.shape)
+        print(covariance_matrices[0] == cov)
+        dets = np.linalg.det(covariance_matrices)
+        print(np.nanargmax(dets))
+        print(dets[np.nanargmax(dets)])
+        sorted_indices = np.argsort(dets)[::-1]
+
+        # Filter out NaN values
+        non_nan_indices = sorted_indices[~np.isnan(dets[sorted_indices])]
+
+        # Get the top 20 indices
+        ind = non_nan_indices[:100]
+        print(ind)
+        print(dets[ind])
+        print(data.df.loc[ind][["RAPDORid", "Rank", "Gene"]])
+        fig = go.Figure()
+        print(array.shape)
+        array = array[ind]
+        shape = array.shape
+        array = array.reshape(-1, array.shape[0])
+
+        pca = PCA(n_components=2)
+        new_x = pca.fit_transform(array)
+        new_x = new_x.reshape(shape[1], shape[2], -1)
+        print(new_x.shape)
+        print(pca.explained_variance_ratio_)
+        for fraction in range(new_x.shape[1]):
+            #name = f"{row['Treatment']}-{row['Replicate']}"
+            for p in range(2):
+                i = "control" if p == 0 else "RNase"
+                name = f"fraction{fraction}- {i}"
+
+                embedding = new_x[p*3:(1+p)*3, fraction, :]
+                fig.add_trace(
+                    go.Scatter(
+                        x=embedding[:, 0],
+                        y=embedding[:, 1],
+                        #z=[new_x[idx, 2]],
+                        name=name,
+                        marker=dict(size=6),
+                        mode="markers",
+
+                    )
+                )
+        fig.show()
+        exit()
+
+rule plotSpearmans:
+    input:
+        json=rules.run_RAPDOR.output.json,
+    output:
+        svg = "Pipeline/Paper/Subfigures/Spearman.svg",
+
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        import numpy as np
+        import plotly.graph_objs as go
+        from scipy.stats import spearmanr
+        from plotly.subplots import make_subplots
+
+        file = input.json
+        with open(file) as handle:
+            data = RAPDORData.from_json(handle.read())
+        array = data.kernel_array
+        print(data.kernel_array.shape)
+
+
+        array = array.reshape(array.shape[1], array.shape[0], -1)
+        n, p, f = array.shape
+        # Iterate through each pair of vectors
+        titles = []
+
+        names = [f"{row['Treatment'] if row['Treatment'] == 'RNase' else 'Ctrl'}-{row['Replicate'][-1]}" for idx, row in data.internal_design_matrix.iterrows()]
+        column_titles = [f"c{name}" for name in names[:-1]]
+        row_titles = [f"r{name}" for name in names[1:]]
+        fig = make_subplots(rows=n-1, cols=n-1,
+            column_titles=column_titles, row_titles=row_titles, shared_xaxes=True,
+            shared_yaxes=True, vertical_spacing=0.02, horizontal_spacing=0.02,
+        )
+        for i in range(n):
+            for j in range(i+1, n):
+                # Calculate Pearson correlation coefficient between vectors i and j
+                mask = np.isnan(array[i]) | np.isnan(array[j])
+                mask = ~mask
+                spears = np.empty(p)
+                for protein in range(p):
+                    sub_i = array[i][protein]
+                    sub_j = array[j][protein]
+                    if np.any(np.isnan(sub_i) | np.isnan(sub_j)):
+                        pearson_coefficient = np.nan
+                    else:
+                        pearson_coefficient, _ = spearmanr(sub_i, sub_j)
+
+                    spears[protein] = pearson_coefficient
+                same = data.internal_design_matrix.iloc[i]["Treatment"] == data.internal_design_matrix.iloc[j]["Treatment"]
+                fig.add_trace(
+                    go.Histogram(
+                        x=spears, showlegend=False,
+                        marker=dict(color=DEFAULT_COLORS[0] if same else DEFAULT_COLORS[1]),
+                        xbins=dict(start=-1, end=1)
+                    ), row=j, col=i+1
+                )
+        fig.update_traces(
+            marker_line=dict(width=0.5,color='black'),
+        )
+        fig.update_layout(
+            template=DEFAULT_TEMPLATE,
+            width=config["width"],
+            height=400,
+            font=dict(size=config["font_size"]),
+            #margin=dict(b=20,t=20,r=30,l=30)
+
+        )
+        #fig.update_layout(legend=dict(x=0, y=0, yanchor="bottom", xanchor="left"))
+        fig.update_annotations(font=dict(size=config["font_size"]))
+        fig.for_each_annotation(lambda a: a.update(y=-0.2, text=a.text[1:]) if a.text in column_titles else a.update(x=-0.1, text=a.text[1:]) if a.text in row_titles else ())
+        fig.write_image(output.svg)
+                # Store the coefficient in the matrix
+
+        # names = [f"{row['Treatment']} - {row['Replicate']}" for idx, row in data.internal_design_matrix.iterrows()]
+        # fig = go.Figure(data=go.Heatmap(
+        #     z=pearson_matrix,
+        #     x = names,
+        #     y=names,
+        # ))
+        # fig.show()
