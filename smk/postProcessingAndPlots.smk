@@ -7,6 +7,28 @@ from RAPDOR.plots import DEFAULT_TEMPLATE, COLOR_SCHEMES
 
 DEFAULT_COLORS = COLOR_SCHEMES["Dolphin"]
 
+DEFAULT_TEMPLATE = DEFAULT_TEMPLATE.update(
+    layout=dict(
+        font=config["fonts"]["default"],
+        xaxis=dict(
+            title=dict(font=config["fonts"]["axis"]),
+            tickfont=config["fonts"]["axis_ticks"],
+
+        ),
+        yaxis=dict(
+            title=dict(font=config["fonts"]["axis"]),
+            tickfont=config["fonts"]["axis_ticks"],
+        ),
+        legend=dict(font=config["fonts"]["legend"]),
+        legend2=dict(font=config["fonts"]["legend"]),
+        annotationdefaults=dict(font=config["fonts"]["annotations"]),
+        margin=config["margin"],
+        coloraxis=dict(colorbar=dict(tickfont=config["fonts"]["legend"]))
+
+    )
+
+)
+
 
 rule joinAnalysisMethods:
     input:
@@ -149,7 +171,6 @@ rule plotVennDiagramm:
             fig = venn_to_plotly(L_sets=(top200RDPM, top200SVM, topRDeep), L_labels=("RAPDOR", "TripepSVM", "RDeeP"), L_color=colors)
             fig.update_layout(template=DEFAULT_TEMPLATE)
             fig.update_layout(
-                font=dict(size=18),
                 xaxis=dict(showgrid=False,zeroline=False, showline=False),
                 yaxis=dict(showgrid=False,zeroline=False, showline=False)
             )
@@ -192,66 +213,6 @@ rule GOEnrichment:
         "../Rscripts/goEnrichment.R"
 
 
-rule plotDistribution:
-    input:
-        file = rules.run_RAPDOR.output.json,
-        joined = rules.joinAnalysisMethods.output.file
-    output:
-        svg = "Pipeline/Paper/Subfigures/Distribution_ids{distributionids}.svg"
-    run:
-        from RAPDOR.datastructures import RAPDORData
-        import pandas as pd
-        import math
-        from RAPDOR.plots import plot_protein_distributions, COLOR_SCHEMES, DEFAULT_TEMPLATE
-        with open(input.file) as handle:
-            data = RAPDORData.from_json(handle.read())
-        ids = config["distributions"][wildcards.distributionids]
-        if isinstance(ids, list):
-            rapdorids = ids
-            tcol = "Gene"
-        else:
-            df = pd.read_csv(input.joined, sep="\t")
-            for key, value in ids.items():
-                df = df[df[key] == value]
-            tcol = "old_locus_tag"
-            rapdorids = df["RAPDORid"]
-        rows = len(rapdorids)
-        fig = plot_protein_distributions(rapdorids, rapdordata=data, colors=COLOR_SCHEMES["Dolphin"], title_col=tcol, cols=1, rows=rows, vertical_spacing=0.1 * (1/rows), horizontal_spacing=0.075)
-        fig.update_layout(template=DEFAULT_TEMPLATE, legend1=dict(y=1.02))
-        fig.update_yaxes(mirror=True, tickfont=dict(size=config["font_size"]))
-        fig.update_xaxes(mirror=True, dtick=1, tickfont=dict(size=config["font_size"]))
-        fig.update_traces(line=dict(width=2), marker=dict(size=3))
-        fig.update_layout(
-            font=dict(size=config["font_size"]),
-        )
-        fig.update_layout(width=config["width"],height=150,
-            legend2=dict(
-                y=1.05,
-                x=0.01,
-                yanchor="top",
-                font=dict(size=config["font_size"]),
-                itemsizing='trace',
-                bgcolor='rgba(0,0,0,0)'
-            ),
-            legend=dict(
-                y=0.9,
-                x=0.01,
-                yanchor="top",
-                font=dict(size=config["font_size"]),
-                itemsizing='trace',
-                bgcolor='rgba(0,0,0,0)'
-            ),
-            margin=dict(b=50, t=20, r= 30, l=30)
-        )
-        for anno in fig.layout.annotations:
-            if anno.text == "Fraction":
-                anno.update(y = anno.y + 0.1, font=dict(size=config["font_size"]))
-            if anno.text == "rel. Protein Intensities":
-                anno.update(font=dict(size=config["font_size"]), x = anno.x + 0.04)
-
-
-
-        fig.write_image(output.svg)
 
 rule rplaDistribution:
     input:
@@ -259,7 +220,7 @@ rule rplaDistribution:
         ctrl_img = "Data/Westernblot_ctrl.png",
         rnase_img = "Data/Westernblot_rnase.png",
     output:
-        svg="Pipeline/Paper/rplAFigure.svg"
+        svg="Pipeline/Paper/Subfigures/rplAFigure.svg"
     run:
         from RAPDOR.datastructures import RAPDORData
         from PIL import Image
@@ -286,7 +247,7 @@ rule rplaDistribution:
                 showlegend=True,
                 legend="legend",
                 legendgroup=t,
-                legendgrouptitle=dict(font=dict(size=config["font_size"]), text=t)
+                legendgrouptitle=dict(text=t)
             )
             fig.add_trace(trace, row=1, col=1)
         for i_idx, trace in enumerate(fig2["data"]):
@@ -303,8 +264,8 @@ rule rplaDistribution:
                 thickness=0.05,
                 thicknessmode="fraction",
                 ticklabelposition="inside",
-                title=dict(text="iBAQ BR1" if i_idx == 0 else "-", font=dict(size=10, color="rgba(0,0,0,0)" if i_idx else None)),
-                tickfont=dict(color="black"),
+                title=dict(text="iBAQ BR1" if i_idx == 0 else "-", font=dict(size=12, color="rgba(0,0,0,0)" if i_idx else None)),
+                tickfont=config["fonts"]["legend"],
                 outlinewidth=1,
                 outlinecolor="black"
 
@@ -361,12 +322,12 @@ rule rplaDistribution:
 
         ))
         fig.update_xaxes(dtick=1)
-        fig.update_layout(template=DEFAULT_TEMPLATE, height=500, width=config["width"], font=dict(size=config["font_size"]))
+        fig.update_layout(template=DEFAULT_TEMPLATE, height=config["F3"]["C"]["height"], width=config["width"])
         fig.update_yaxes(row=4, showgrid=False)
 
         fig.update_yaxes( row=5, showgrid=False)
         fig.update_xaxes(title = "Fraction", row=5, range=[0.5, 20.5])
-        fig.update_layout(legend=dict(font=dict(size=8), tracegroupgap=0, orientation="v", x=1.005, y=1, xanchor="left", yanchor="top"))
+        fig.update_layout(legend=dict(tracegroupgap=0, orientation="v", x=1.005, y=1, xanchor="left", yanchor="top"))
         fig.add_annotation(
             text="Anti-RplA",
             xref="paper",
@@ -400,7 +361,7 @@ rule plotMeanDistribution:
         ids2 = data.df[data.df["large_ribosomal"] == True]["RAPDORid"]
         ids3 = data.df[data.df["photosystem"] == True]["RAPDORid"]
         ids4 = data.df[data.df["RNA ploymerase"] == True]["RAPDORid"]
-        d = {"small subunit": ids, "large subunit": ids2, "photosystem": ids3, "RNA polymerase": ids4}
+        d = {"small subunit": ids, "large subunit": ids2, "photosystem": ids3}
         fig = multi_means_and_histo(d, data, colors=COLOR_SCHEMES["Dolphin"] + COLOR_SCHEMES["Viking"], row_heights=[0.2, 0.2, 0.6], vertical_spacing=0.08)
         fig.update_yaxes(row=3, range=[0, 0.6])
         fig.update_yaxes(row=1, dtick=0.4)
@@ -414,7 +375,15 @@ rule plotMeanDistribution:
             marker_line=dict(width=0.5,color='black'),
             row=2
         )
-        fig.update_layout(height=300)
+
+        fig.update_layout(
+            height=config["F3"]["A"]["height"],
+            width=config["width"],
+            template=DEFAULT_TEMPLATE,
+        )
+        fig.update_annotations(
+            dict(font=config["fonts"]["axis"])
+        )
         fig.write_image(output.svg)
 
 
@@ -449,10 +418,14 @@ rule plotBarcodePlot:
         fig = rank_plot(d, data, colors)
 
         fig.update_layout(
-            margin=dict(b=15, t=20, r= 30, l=30), width=config["width"], height=130,
-            legend=dict(bgcolor = 'rgba(0,0,0,0)')
+            width=config["width"], height=config["F3"]["B"]["height"],
+            legend=dict(bgcolor = 'rgba(0,0,0,0)', )
 
         )
+
+
+
+
 
         #fig.show()
         fig.write_image(output.svg)
@@ -534,15 +507,9 @@ rule plotAllVenns:
             multi_fig.update_yaxes(fig["layout"]["yaxis"], row=1, col=idx)
             multi_fig.update_yaxes(scaleanchor="x" if idx == 1 else f"x{idx}", scaleratio=1, col=idx)
 
-        print(multi_fig["layout"]["xaxis"])
-        print(multi_fig["layout"]["xaxis2"])
-        print(multi_fig["layout"]["yaxis"])
-        print(multi_fig["layout"]["yaxis2"])
         multi_fig.update_layout(template=DEFAULT_TEMPLATE)
-        multi_fig.update_layout(font=dict(size=config["font_size"]))
         multi_fig.update_layout(
-            legend={'itemsizing': 'trace',"font": dict(size=config["font_size"]), "orientation": "h", "yanchor": "bottom", "y": 1.01},
-            margin=dict(b=0,l=10,pad=0,r=10,t=40),
+            legend={'itemsizing': 'trace', "orientation": "h", "yanchor": "bottom", "y": 1.01},
             width=config["width"], height=250
         )
 
@@ -648,13 +615,10 @@ rule plotRuntime:
 
             )
 
-        fig.layout.annotations[0].update(font=dict(size=config["font_size"]))
         fig.update_layout(template=DEFAULT_TEMPLATE, width=config["width"], height=300,
-            margin=dict(r=10, l=70, t=30, b=50)
         )
         fig.update_yaxes(type="log", title=dict(text="Average Runtime [s]"), col=1)
         fig.update_yaxes(title=dict(text="Memory [Mb]"), col=2)
-        fig.update_layout(font=dict(size=config["font_size"]))
 
         fig.update_xaxes(type='linear')
         fig.write_image(output.svg)
@@ -666,7 +630,7 @@ rule createBubblePlot:
         file=rules.run_RAPDOR.output.json,
         joined=rules.extract_overlapping_proteins.output.tsv2,
     output:
-        svg = "Pipeline/plots/DimensionReduction_ids{highlight}.svg",
+        svg = "Pipeline/Paper/Subfigures/DimensionReduction_ids{highlight}.svg",
         html = "Pipeline/plots/DimensionReduction_ids{highlight}.html",
         json = "Pipeline/plots/DimensionReduction_ids{highlight}.json"
     run:
@@ -688,22 +652,21 @@ rule createBubblePlot:
             colors=COLOR_SCHEMES["Dolphin"],
             highlight=ids,
             title_col="Gene",
-            legend_spread=0.1,
-            legend_start=0.2
+            legend_spread=0.125,
+            legend_start=0.175
         )
-        fig.update_annotations(font=dict(size=config["font_size"]))
-        for annotation in fig.layout.annotations:
-            print(annotation.text)
-            if annotation.text == "Mean Distance":
-                annotation.update(font=dict(size=config["font_size"] + 2))
+
         fig.layout.update(
             template=DEFAULT_TEMPLATE,
             width=config["width"],
             height=config["height"],
             legend=dict(visible=False),
-            margin=dict(t=20, r=10, l=10, b=10),
-            font=dict(size=config["font_size"])
+            margin=config["margin"]
         )
+        fig.update_annotations(
+            font=config["fonts"]["legend"]
+        )
+
 
         fig.write_image(output.svg)
         fig.write_html(output.html)
@@ -764,7 +727,7 @@ rule plotConditionedSynechochoColdRibo:
         fig.write_image(output.svg)
         fig = rank_plot(d, rapdordata=data, colors = COLOR_SCHEMES["Dolphin"] + COLOR_SCHEMES["Viking"])
         fig.update_layout(width=config["width"])
-        fig.update_layout(margin=dict(r=10, l=10, t=0, b=0), height=config["height"] / 2)
+        fig.update_layout(height=config["height"] / 2)
 
         fig.write_image(output.svg2)
         fig.write_html(output.html2)
@@ -851,10 +814,12 @@ rule plotSpearmans:
     input:
         json=rules.run_RAPDOR.output.json,
     output:
-        svg = "Pipeline/Paper/Subfigures/Spearman.svg",
+        svg = "Pipeline/Paper/Subfigures/SampleSpearman.svg",
+        svg2 = "Pipeline/Paper/Subfigures/SampleJSD.svg",
 
     run:
         from RAPDOR.datastructures import RAPDORData
+        from RAPDOR.plots import plot_sample_histogram
         import numpy as np
         import plotly.graph_objs as go
         from scipy.stats import spearmanr
@@ -863,60 +828,18 @@ rule plotSpearmans:
         file = input.json
         with open(file) as handle:
             data = RAPDORData.from_json(handle.read())
-        array = data.kernel_array
-        print(data.kernel_array.shape)
-
-
-        array = array.reshape(array.shape[1], array.shape[0], -1)
-        n, p, f = array.shape
-        # Iterate through each pair of vectors
-        titles = []
-
-        names = [f"{row['Treatment'] if row['Treatment'] == 'RNase' else 'Ctrl'}-{row['Replicate'][-1]}" for idx, row in data.internal_design_matrix.iterrows()]
-        column_titles = [f"c{name}" for name in names[:-1]]
-        row_titles = [f"r{name}" for name in names[1:]]
-        fig = make_subplots(rows=n-1, cols=n-1,
-            column_titles=column_titles, row_titles=row_titles, shared_xaxes=True,
-            shared_yaxes=True, vertical_spacing=0.02, horizontal_spacing=0.02,
-        )
-        for i in range(n):
-            for j in range(i+1, n):
-                # Calculate Pearson correlation coefficient between vectors i and j
-                mask = np.isnan(array[i]) | np.isnan(array[j])
-                mask = ~mask
-                spears = np.empty(p)
-                for protein in range(p):
-                    sub_i = array[i][protein]
-                    sub_j = array[j][protein]
-                    if np.any(np.isnan(sub_i) | np.isnan(sub_j)):
-                        pearson_coefficient = np.nan
-                    else:
-                        pearson_coefficient, _ = spearmanr(sub_i, sub_j)
-
-                    spears[protein] = pearson_coefficient
-                same = data.internal_design_matrix.iloc[i]["Treatment"] == data.internal_design_matrix.iloc[j]["Treatment"]
-                fig.add_trace(
-                    go.Histogram(
-                        x=spears, showlegend=False,
-                        marker=dict(color=DEFAULT_COLORS[0] if same else DEFAULT_COLORS[1]),
-                        xbins=dict(start=-1, end=1)
-                    ), row=j, col=i+1
-                )
-        fig.update_traces(
-            marker_line=dict(width=0.5,color='black'),
-        )
-        fig.update_layout(
-            template=DEFAULT_TEMPLATE,
-            width=config["width"],
-            height=400,
-            font=dict(size=config["font_size"]),
-            #margin=dict(b=20,t=20,r=30,l=30)
-
-        )
-        #fig.update_layout(legend=dict(x=0, y=0, yanchor="bottom", xanchor="left"))
-        fig.update_annotations(font=dict(size=config["font_size"]))
-        fig.for_each_annotation(lambda a: a.update(y=-0.2, text=a.text[1:]) if a.text in column_titles else a.update(x=-0.1, text=a.text[1:]) if a.text in row_titles else ())
+        fig = plot_sample_histogram(data,method="spearman",  colors=DEFAULT_COLORS)
         fig.write_image(output.svg)
+        fig.update_traces(
+            marker_line=dict(color="black", width=0.1)
+        )
+        fig = plot_sample_histogram(data, method="jsd", colors=DEFAULT_COLORS)
+        fig.update_traces(
+            marker_line=dict(color="black", width=0.1)
+        )
+        fig.write_image(output.svg2)
+
+
                 # Store the coefficient in the matrix
 
         # names = [f"{row['Treatment']} - {row['Replicate']}" for idx, row in data.internal_design_matrix.iterrows()]
@@ -926,3 +849,91 @@ rule plotSpearmans:
         #     y=names,
         # ))
         # fig.show()
+
+rule combineFigure3:
+    input:
+        rpla = rules.rplaDistribution.output.svg,
+        means = rules.plotMeanDistribution.output.svg,
+        barcode = rules.plotBarcodePlot.output.svg
+    output:
+        svg = "Pipeline/Paper/Figure3.svg",
+
+    run:
+        from svgutils.compose import Figure, Panel, SVG, Text
+        b_y = config["F3"]["A"]["height"]
+        c_y = config["F3"]["A"]["height"] + config["F3"]["B"]["height"]
+        ges_y = config["F3"]["A"]["height"] + config["F3"]["B"]["height"] + config["F3"]["C"]["height"]
+        f = Figure("624px",f"{ges_y}px",
+            Panel(
+                SVG(input.means),
+                Text("A",10,10,size=config["multipanel_font_size"],weight='bold')
+
+            ),
+            Panel(
+                SVG(input.barcode),
+                Text("B",10,10,size=config["multipanel_font_size"],weight='bold')
+            ).move(0,b_y),
+            Panel(
+                SVG(input.rpla),
+                Text("C",10,10,size=config["multipanel_font_size"],weight='bold')
+            ).move(0,c_y)
+        )
+        f.save(output.svg)
+
+rule detectedProteinTable:
+    input:
+        json = rules.run_RAPDOR.output.json
+    output:
+        file = "Pipeline/Paper/TableS1BasedOnKArray.tsv",
+        file2 = "Pipeline/Paper/TableS1BasedOnPeaks.tsv"
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        import numpy as np
+        from scipy.stats import pearsonr
+        import pandas as pd
+        import plotly.graph_objs as go
+
+        file = input.json
+        with open(file) as handle:
+            data = RAPDORData.from_json(handle.read())
+        p = data.array
+        mask = np.all(np.isnan(p), axis=-1)
+        z = p
+        z[mask] = 1
+        idx = np.nanargmax(p, axis=-1) + 1
+        idx[mask] = -1
+
+        i = np.nansum(p > 0, axis=0).reshape(p.shape[-1], -1)#
+        counts = np.empty(i.shape)
+        ks = data.state.kernel_size // 2
+        ks = 0
+
+        for x in data.fractions:
+            count_along_axis = np.count_nonzero(idx == x, axis=0)
+            counts[x-1] = count_along_axis
+
+
+        row_names = data.fractions[ks:-ks ] if ks != 0 else data.fractions
+        column_names = [f"{row['Treatment']}-{row['Replicate']}" for _, row in data.internal_design_matrix.iterrows()]
+        df = pd.DataFrame(i, columns=column_names, index=row_names)
+        df2 = pd.DataFrame(counts, columns=column_names, index=row_names)
+        corr = np.empty((df.shape[1], df.shape[1]))
+        for idx1, col1 in enumerate(df.columns):
+            for idx2, col2 in enumerate(df.columns):
+                a1 = df[col1]
+                a2 = df[col2]
+                pearson_r, _ = pearsonr(a1, a2)
+                corr[idx1, idx2] = pearson_r if idx1 != idx2 else np.nan
+        fig = go.Figure(data=go.Heatmap(
+            z=corr,
+            x=df.columns,
+            y=df.columns
+        ))
+        df.index.name = "Fraction"
+        df.to_csv(output.file, sep="\t")
+        df.loc['Sum'] = df.sum(axis=0)
+        df2.to_csv(output.file2, sep="\t")
+        df2.loc['Sum'] = df2.sum(axis=0)
+
+
+

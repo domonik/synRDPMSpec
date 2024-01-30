@@ -9,10 +9,40 @@ distributions:
     ribosomal protein: false
 
 benchmark_repeats:  1
-
-font_size: 10
+fonts:
+  default:
+    family: "Arial"
+    size: 12
+  legend:
+    family: "Arial"
+    size: 10
+    color: "black"
+  axis:
+    family: "Arial"
+    size: 12
+  axis_ticks:
+    family: "Arial"
+    size: 10
+  annotations:
+    family: "Arial"
+    size: 12
 width: 624
 height: 400
+
+margin:
+  b: 15
+  t: 20
+  r: 30
+  l: 30
+
+F3:
+  A:
+    height: 300
+  B:
+    height: 130
+  C:
+    height: 400
+
 
 
 species: "sp"

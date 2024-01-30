@@ -24,8 +24,9 @@ rule all:
         table1 = rules.createTable1.output,
         figs2 = rules.plotConditionedSynechochoColdRibo.output,
         rdeep_rapdor = rules.runRAPDORonRDeePNorm.output,
-        rpla = rules.rplaDistribution.output,
-        fig = rules.plotSpearmans.output
+        rpla = rules.combineFigure3.output,
+        fig = rules.plotSpearmans.output,
+        ts1 = rules.detectedProteinTable.output
 
 
 
