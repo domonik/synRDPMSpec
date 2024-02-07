@@ -115,11 +115,13 @@ rule extract_overlapping_proteins:
         all.to_csv(output.tsv2,sep="\t",index=False)
 
 
-rule createTable1:
+rule createTable1andTableS1:
     input:
-        tsv = rules.extract_overlapping_proteins.output.tsv2
+        tsv = rules.extract_overlapping_proteins.output.tsv2,
+        tsv2 = rules.joinAnalysisMethods.output.file
     output:
-        tsv = "Pipeline/Paper/Table1.tsv"
+        tsv = "Pipeline/Paper/Table1.tsv",
+        tsv2 = "Pipeline/Paper/TableS2JoinedAllMethods.tsv",
     run:
         import pandas as pd
         df = pd.read_csv(input.tsv, sep="\t")
@@ -128,6 +130,29 @@ rule createTable1:
         df = df.sort_values(by="Rank")
         df.loc[df.Gene.str.contains("sll|slr", na=False), "Gene"] = ""
         df.to_csv(output.tsv, sep="\t", index=False, float_format='%.2f')
+        df = pd.read_csv(input.tsv2, sep="\t")
+
+        df = df[[
+                "RAPDORid",
+                "old_locus_tag",
+                "Gene",
+                "ProteinFunction",
+                "ANOSIM R",
+                "Mean Distance",
+                "Rank",
+                "SVM Rank",
+                "SVM Score",
+                'SVM RNA-binding',
+                "RDeeP significant",
+                "Control expected shift",
+                "RNase expected shift",
+                "relative fraction shift",
+                "ribosomal protein",
+                "contains empty replicate",
+            ]]
+        df = df.sort_values(by="Rank")
+        df.to_csv(output.tsv2, index=False, sep="\t")
+
 
 
 rule plotVennDiagramm:
@@ -137,7 +162,7 @@ rule plotVennDiagramm:
             html = "Pipeline/plots/VennDiagramm_set{set}.html",
             svg = "Pipeline/plots/VennDiagramm_set{set}.svg",
             tsv = "Pipeline/postProcessing/topCandidates_set{set}.tsv",
-            json = "Pipeline/postProcessing/VennDiagramm_set{set}.json",
+            json = "Pipeline/plots/VennDiagramm_set{set}.json",
         run:
             NUMBER_PROTEINS = config["nr_proteins"]
             from RAPDOR.plots import COLOR_SCHEMES, _color_to_calpha
@@ -182,7 +207,7 @@ rule plotVennDiagramm:
                 yref="y domain",
                 x=1,
                 y=1,
-                showarrow=False
+                showarrow=False,
             )
 
 
@@ -322,7 +347,7 @@ rule rplaDistribution:
 
         ))
         fig.update_xaxes(dtick=1)
-        fig.update_layout(template=DEFAULT_TEMPLATE, height=config["F3"]["C"]["height"], width=config["width"])
+        fig.update_layout(template=DEFAULT_TEMPLATE, height=config["F3"]["A"]["height"], width=config["width"])
         fig.update_yaxes(row=4, showgrid=False)
 
         fig.update_yaxes( row=5, showgrid=False)
@@ -377,7 +402,7 @@ rule plotMeanDistribution:
         )
 
         fig.update_layout(
-            height=config["F3"]["A"]["height"],
+            height=config["F3"]["B"]["height"],
             width=config["width"],
             template=DEFAULT_TEMPLATE,
         )
@@ -418,7 +443,7 @@ rule plotBarcodePlot:
         fig = rank_plot(d, data, colors)
 
         fig.update_layout(
-            width=config["width"], height=config["F3"]["B"]["height"],
+            width=config["width"], height=config["F3"]["C"]["height"],
             legend=dict(bgcolor = 'rgba(0,0,0,0)', )
 
         )
@@ -434,7 +459,7 @@ rule plotAllVenns:
     input:
         files = expand(rules.plotVennDiagramm.output.json, set=["others", "ribosomes", "rna_binding"])
     output:
-        svg = "Pipeline/plots/VennDiagramm_all.svg"
+        svg = "Pipeline/Paper/Subfigures/VennDiagramm_all.svg"
     run:
         import plotly.graph_objs as go
         import plotly.subplots as sp
@@ -510,8 +535,26 @@ rule plotAllVenns:
         multi_fig.update_layout(template=DEFAULT_TEMPLATE)
         multi_fig.update_layout(
             legend={'itemsizing': 'trace', "orientation": "h", "yanchor": "bottom", "y": 1.01},
-            width=config["width"], height=250
+            width=config["width"], height=250, font=config["fonts"]["legend"]
         )
+        for annotation in multi_fig.layout.annotations:
+            if annotation.text.startswith("<b>"):
+                pass
+            elif annotation.text.startswith("n:"):
+                annotation.update(font=config["fonts"]["annotations"])
+            else:
+                annotation.update(font=config["fonts"]["annotations"], xanchor="center", yanchor="middle")
+                if annotation.text == "0":
+                    annotation.update(showarrow=True, ay=-0.5, ax=0.5, axref=annotation.xref, ayref=annotation.yref, arrowcolor='black')
+                if annotation.text == "1":
+                    annotation.update(showarrow=True, ay=-0.3, ax=0.7, axref=annotation.xref, ayref=annotation.yref, arrowcolor='black')
+                if annotation.text == "4":
+                    annotation.update(x=annotation.x - 0.1, y=annotation.y - 0.1)
+                if annotation.text == "8":
+                    annotation.update(x=annotation.x + 0.05)
+                if annotation.text == "12":
+                    annotation.update(y=annotation.y + 0.05)
+
 
         multi_fig.write_image(output.svg)
 
@@ -829,6 +872,9 @@ rule plotSpearmans:
         with open(file) as handle:
             data = RAPDORData.from_json(handle.read())
         fig = plot_sample_histogram(data,method="spearman",  colors=DEFAULT_COLORS)
+        fig.update_layout(template=DEFAULT_TEMPLATE, margin=dict(b=70, l=70, r=70, t=70))
+        fig.update_annotations(font=config["fonts"]["axis"])
+
         fig.write_image(output.svg)
         fig.update_traces(
             marker_line=dict(color="black", width=0.1)
@@ -837,6 +883,9 @@ rule plotSpearmans:
         fig.update_traces(
             marker_line=dict(color="black", width=0.1)
         )
+        fig.update_layout(template=DEFAULT_TEMPLATE, margin=dict(b=70, l=70, r=70, t=70))
+        fig.update_annotations(font=config["fonts"]["axis"])
+
         fig.write_image(output.svg2)
 
 
@@ -865,17 +914,17 @@ rule combineFigure3:
         ges_y = config["F3"]["A"]["height"] + config["F3"]["B"]["height"] + config["F3"]["C"]["height"]
         f = Figure("624px",f"{ges_y}px",
             Panel(
-                SVG(input.means),
-                Text("A",10,10,size=config["multipanel_font_size"],weight='bold')
+                SVG(input.rpla),
+                Text("A",2,15,size=config["multipanel_font_size"],weight='bold', font="Arial")
 
             ),
             Panel(
-                SVG(input.barcode),
-                Text("B",10,10,size=config["multipanel_font_size"],weight='bold')
+                SVG(input.means),
+                Text("B",2,2,size=config["multipanel_font_size"],weight='bold', font="Arial")
             ).move(0,b_y),
             Panel(
-                SVG(input.rpla),
-                Text("C",10,10,size=config["multipanel_font_size"],weight='bold')
+                SVG(input.barcode),
+                Text("C",2,2,size=config["multipanel_font_size"],weight='bold', font="Arial")
             ).move(0,c_y)
         )
         f.save(output.svg)

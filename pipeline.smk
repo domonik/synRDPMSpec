@@ -21,7 +21,7 @@ rule all:
         syn_cond = expand(rules.runOnSynData.output, condition=["COLD", "HEAT", "DARK", "N", "Fe"]),
         overlapping_data = rules.extract_overlapping_proteins.output,
         fig4 = rules.createFigure4.output,
-        table1 = rules.createTable1.output,
+        table1 = rules.createTable1andTableS1.output,
         figs2 = rules.plotConditionedSynechochoColdRibo.output,
         rdeep_rapdor = rules.runRAPDORonRDeePNorm.output,
         rpla = rules.combineFigure3.output,

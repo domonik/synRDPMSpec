@@ -58,7 +58,7 @@ def venn_to_plotly(L_sets, L_labels=None, title=None, L_color = None):
             x1=v.centers[i][0] + v.radii[i],
             y1=v.centers[i][1] + v.radii[i],
             fillcolor=L_color[i],
-            line_color=L_color[i],
+            line=dict(width=0.5, color=L_color[i]),
             opacity=0.75
         )
         final_shapes.append(
@@ -71,7 +71,7 @@ def venn_to_plotly(L_sets, L_labels=None, title=None, L_color = None):
                 x1=v.centers[i][0] + v.radii[i],
                 y1=v.centers[i][1] + v.radii[i],
                 fillcolor="rgba(255,0,0,0)",
-                line_color="black",
+                line=dict(width=0.5, color="black"),
                 opacity=1
             )
         )

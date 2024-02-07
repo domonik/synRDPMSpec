@@ -30,18 +30,18 @@ width: 624
 height: 400
 
 margin:
-  b: 15
+  b: 30
   t: 20
   r: 30
   l: 30
 
 F3:
   A:
-    height: 300
-  B:
-    height: 130
-  C:
     height: 400
+  B:
+    height: 300
+  C:
+    height: 130
 
 
 
@@ -53,4 +53,4 @@ minGSSize: 30
 maxGSSize: 500
 
 nr_proteins: 200
-multipanel_font_size: 14
+multipanel_font_size: 18

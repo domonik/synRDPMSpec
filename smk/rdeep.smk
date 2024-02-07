@@ -17,8 +17,7 @@ rule prepareForRDeep:
         design = pd.read_csv(input.design, sep="\t")
         with open(input.rdpdata) as handle:
             rap_data = RAPDORData.from_json(handle.read())
-        indices = rap_data.df[rap_data.df["min replicates per group"] == 3]["RAPDORid"]
-        df = df[df["id"].isin(indices)]
+
 
         df = df.loc[:, df.columns.isin(list(design.Name) + ["id"])]
 
