@@ -417,7 +417,8 @@ rule plotBarcodePlot:
         file = rules.joinAnalysisMethods.output.file,
         rapdor = rules.run_RAPDOR.output.json
     output:
-        svg = "Pipeline/Paper/Subfigures/ribosomalIdentifier.svg"
+        svg = "Pipeline/Paper/Subfigures/ribosomalIdentifier.svg",
+        html = "Pipeline/Paper/Subfigures/ribosomalIdentifier.html",
     run:
         import plotly.graph_objs as go
         import pandas as pd
@@ -454,6 +455,7 @@ rule plotBarcodePlot:
 
         #fig.show()
         fig.write_image(output.svg)
+        fig.write_html(output.html)
 
 rule plotAllVenns:
     input:
@@ -689,7 +691,7 @@ rule createBubblePlot:
             ids = data.df[data.df["old_locus_tag"].isin(overlapping["old_locus_tag"])]["RAPDORid"]
         else:
             raise ValueError("Not supported")
-
+        data.df['Gene'] = data.df.apply(lambda row: row['old_locus_tag'] if pd.isnull(row['Gene']) or row['Gene'] == '' else row['Gene'], axis=1)
         fig = plot_dimension_reduction(
             rapdordata=data,
             colors=COLOR_SCHEMES["Dolphin"],
@@ -709,6 +711,24 @@ rule createBubblePlot:
         fig.update_annotations(
             font=config["fonts"]["legend"]
         )
+        for annotation in fig.layout.annotations:
+            if annotation.text == "0.9":
+                annotation.update(x=annotation.x + 0.01)
+            elif annotation.text == "pheS":
+                annotation.update(showarrow=True,ay=-.1,ax=-2,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "groEL1":
+                annotation.update(showarrow=True,ay=-.07,ax=-10,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "cphA":
+                annotation.update(showarrow=True,ax=-9.5, ay=annotation.y, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "tsf":
+                annotation.update(showarrow=True,ay=.1,ax=annotation.x,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "ftsH2":
+                annotation.update(showarrow=True,ay=-.1,ax=-8,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "cysC":
+                annotation.update(showarrow=True,ay=.075,ax=1,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "rpoB":
+                annotation.update(showarrow=True,ay=annotation.y,ax=0, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+
 
 
         fig.write_image(output.svg)
