@@ -76,7 +76,7 @@ rule joinAnalysisMethods:
 
         rapdor_table.to_csv(output.file ,sep="\t", index=False)
 
-rule extract_overlapping_proteins:
+rule extract_tophits:
     input:
         tsv = rules.joinAnalysisMethods.output.file
     output:
@@ -85,10 +85,14 @@ rule extract_overlapping_proteins:
     run:
         import pandas as pd
         df = pd.read_csv(input.tsv, sep="\t")
+
+        interesting_candidates = [417, 777, 1024, 853, 964, 1284, 1574, 1314, 1599, 360]
+        svm_candidates = [300, 643, 421]
         top200SVM = set(
-            df[df["SVM RNA-binding"] == True]["old_locus_tag"]
+            df[df["RAPDORid"].isin(svm_candidates)]["old_locus_tag"]
         )
-        top200RDPM = set(df[df["Rank"] <= config["nr_proteins"]]["old_locus_tag"])
+
+        top200RDPM = set(df[df["RAPDORid"].isin(interesting_candidates)]["old_locus_tag"])
         df = df[
             [
                 "RAPDORid",
@@ -108,7 +112,7 @@ rule extract_overlapping_proteins:
                 "contains empty replicate",
             ]
         ]
-        all = top200RDPM.intersection(top200SVM)
+        all = top200RDPM | top200SVM
         all = df[df["old_locus_tag"].isin(all)]
         all.to_csv(output.tsv,sep="\t",index=False)
         all = all[all["ribosomal protein"] == False]
@@ -117,7 +121,7 @@ rule extract_overlapping_proteins:
 
 rule createTable1andTableS1:
     input:
-        tsv = rules.extract_overlapping_proteins.output.tsv2,
+        tsv = rules.extract_tophits.output.tsv2,
         tsv2 = rules.joinAnalysisMethods.output.file
     output:
         tsv = "Pipeline/Paper/Table1.tsv",
@@ -673,7 +677,7 @@ rule plotRuntime:
 rule createBubblePlot:
     input:
         file=rules.run_RAPDOR.output.json,
-        joined=rules.extract_overlapping_proteins.output.tsv2,
+        joined=rules.extract_tophits.output.tsv2,
     output:
         svg = "Pipeline/Paper/Subfigures/DimensionReduction_ids{highlight}.svg",
         html = "Pipeline/plots/DimensionReduction_ids{highlight}.html",
@@ -709,7 +713,7 @@ rule createBubblePlot:
             margin=config["margin"]
         )
         fig.update_annotations(
-            font=config["fonts"]["legend"]
+            font=config["fonts"]["legend"],
         )
         for annotation in fig.layout.annotations:
             if annotation.text == "0.9":
@@ -717,9 +721,9 @@ rule createBubblePlot:
             elif annotation.text == "pheS":
                 annotation.update(showarrow=True,ay=-.1,ax=-2,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "groEL1":
-                annotation.update(showarrow=True,ay=-.07,ax=-10,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ay=-.3,ax=-10,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "cphA":
-                annotation.update(showarrow=True,ax=-9.5, ay=annotation.y, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=-12.5, ay=-.2, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "tsf":
                 annotation.update(showarrow=True,ay=.1,ax=annotation.x,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "ftsH2":
@@ -728,7 +732,28 @@ rule createBubblePlot:
                 annotation.update(showarrow=True,ay=.075,ax=1,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "rpoB":
                 annotation.update(showarrow=True,ay=annotation.y,ax=0, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-
+            elif annotation.text == "rbpA":
+                annotation.update(showarrow=True,ay=-.35,ax=-7.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "slr0147":
+                annotation.update(showarrow=True,ay=-.4,ax=-5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "slr1143":
+                annotation.update(showarrow=True,ay=-.45,ax=1, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "hpf":
+                annotation.update(showarrow=True,ay=.3,ax=-16, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "sll1388":
+                annotation.update(showarrow=True,ax=-14,ay=.4, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "chlI":
+                annotation.update(showarrow=True,ax=annotation.x,ay=.45, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "sll0921":
+                annotation.update(showarrow=True,ax=annotation.x,ay=.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "pgm":
+                annotation.update(showarrow=True,ax=-3.5, ay=.57, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "sll1967":
+                annotation.update(showarrow=True,ax=0,ay=.55, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "slr0782":
+                annotation.update(showarrow=True,ax=0.5,ay=.4, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "queF":
+                annotation.update(showarrow=True,ax=1,ay=.35, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
 
 
         fig.write_image(output.svg)
@@ -751,7 +776,7 @@ rule createFigure4:
             ),
             Panel(
                 SVG(input.bubble[0]),
-                Text("D", 10, 30,size=config["multipanel_font_size"],weight='bold')
+                Text("D", 10, 30,size=config["multipanel_font_size"],weight='bold', font="Arial")
             ).move(0, 250)
         )
         f.save(output.svg)

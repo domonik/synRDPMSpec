@@ -19,7 +19,7 @@ rule all:
         #benchmark = rules.plotRuntime.output,
         #salmonella = rules.runIdentifierOnSalmonella.output,
         syn_cond = expand(rules.runOnSynData.output, condition=["COLD", "HEAT", "DARK", "N", "Fe"]),
-        overlapping_data = rules.extract_overlapping_proteins.output,
+        overlapping_data = rules.extract_tophits.output,
         fig4 = rules.createFigure4.output,
         table1 = rules.createTable1andTableS1.output,
         figs2 = rules.plotConditionedSynechochoColdRibo.output,
