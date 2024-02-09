@@ -779,7 +779,11 @@ rule createFigure4:
                 Text("D", 10, 30,size=config["multipanel_font_size"],weight='bold', font="Arial")
             ).move(0, 250)
         )
-        f.save(output.svg)
+        svg_string = f.tostr()
+
+        svg_string = svg_string.decode().replace("encoding='ASCII'", "encoding='utf-8'")
+        with open(output.svg, "w") as handle:
+            handle.write(svg_string)
 
 
 rule plotConditionedSynechochoColdRibo:
@@ -789,6 +793,8 @@ rule plotConditionedSynechochoColdRibo:
         svg = "Pipeline/Paper/FigureS2.svg",
         svg2 = "Pipeline/Paper/FigureS3.svg",
         html2 = "Pipeline/Paper/FigureS3.html",
+        tsv = "Pipeline/Paper/TableforFigureS4.tsv",
+        json = "Pipeline/Paper/RAPDORforFigureS4.json",
 
     run:
         from RAPDOR.datastructures import RAPDORData
@@ -819,6 +825,9 @@ rule plotConditionedSynechochoColdRibo:
 
         fig.write_image(output.svg2)
         fig.write_html(output.html2)
+        data.df["mentioned in wang"] = data.df["Gene"].isin(names)
+        data.export_csv(output.tsv, sep="\t")
+        data.to_json(output.json)
 
 
 rule analyzeProteinAbundance:
@@ -972,7 +981,10 @@ rule combineFigure3:
                 Text("C",2,2,size=config["multipanel_font_size"],weight='bold', font="Arial")
             ).move(0,c_y)
         )
-        f.save(output.svg)
+        svg_string = f.tostr()
+        svg_string = svg_string.decode().replace("encoding='ASCII'", "encoding='utf-8'")
+        with open(output.svg, "w") as handle:
+            handle.write(svg_string)
 
 rule detectedProteinTable:
     input:
