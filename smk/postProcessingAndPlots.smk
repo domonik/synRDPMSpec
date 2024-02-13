@@ -370,8 +370,37 @@ rule rplaDistribution:
         fig.write_image(output.svg)
 
 
+rule plotTopHitDistribution:
+    input:
+        tophits = rules.extract_tophits.output.tsv2,
+        json = rules.run_RAPDOR.output.json
+    output:
+        svg = "Pipeline/Paper/Figure5.svg"
+    run:
+        import pandas as pd
+        from RAPDOR.datastructures import RAPDORData
+        import pandas as pd
+        import math
+        from RAPDOR.plots import plot_protein_distributions
 
+        with open(input.json) as handle:
+            rapdor_data = RAPDORData.from_json(handle.read())
+        df = pd.read_csv(input.tophits, sep="\t")
+        topids = df["RAPDORid"]
+        fig = plot_protein_distributions(
+            topids, rapdordata=rapdor_data, colors=COLOR_SCHEMES["Dolphin"],
+            plot_type="zoomed", column_widths=[0.7, 0.3], horizontal_spacing=0.075, title_col="Protein name"
+        )
+        fig.update_layout(template=DEFAULT_TEMPLATE, width=config["width"], height=900)
+        fig.update_layout(
+            legend=dict(font=config["fonts"]["legend"], y=1.015),
+            legend2=dict(font=config["fonts"]["legend"], y=1.05),
+        )
+        fig.update_annotations(font=config["fonts"]["annotations"])
+        fig.update_traces(line=dict(width=2),
+                marker=dict(size=3),)
 
+        fig.write_image(output.svg)
 
 rule plotMeanDistribution:
     input:
@@ -700,7 +729,7 @@ rule createBubblePlot:
             rapdordata=data,
             colors=COLOR_SCHEMES["Dolphin"],
             highlight=ids,
-            title_col="Gene",
+            title_col="Protein name",
             legend_spread=0.125,
             legend_start=0.175
         )
@@ -718,41 +747,41 @@ rule createBubblePlot:
         for annotation in fig.layout.annotations:
             if annotation.text == "0.9":
                 annotation.update(x=annotation.x + 0.01)
-            elif annotation.text == "pheS":
+            elif annotation.text == "PheS":
                 annotation.update(showarrow=True,ay=-.1,ax=-2,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "groEL1":
+            elif annotation.text == "GroEL1":
                 annotation.update(showarrow=True,ay=-.3,ax=-10,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "cphA":
+            elif annotation.text == "CphA":
                 annotation.update(showarrow=True,ax=-12.5, ay=-.2, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "tsf":
+            elif annotation.text == "Tsf":
                 annotation.update(showarrow=True,ay=.1,ax=annotation.x,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "ftsH2":
+            elif annotation.text == "FtsH2":
                 annotation.update(showarrow=True,ay=-.1,ax=-8,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "cysC":
+            elif annotation.text == "CysC":
                 annotation.update(showarrow=True,ay=.075,ax=1,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "rpoB":
+            elif annotation.text == "RpoB":
                 annotation.update(showarrow=True,ay=annotation.y,ax=0, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "rbpA":
+            elif annotation.text == "RbpA":
                 annotation.update(showarrow=True,ay=-.35,ax=-7.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "slr0147":
+            elif annotation.text == "Slr0147":
                 annotation.update(showarrow=True,ay=-.4,ax=-5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "slr1143":
+            elif annotation.text == "Slr1143":
                 annotation.update(showarrow=True,ay=-.45,ax=1, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "hpf":
+            elif annotation.text == "Hpf":
                 annotation.update(showarrow=True,ay=.3,ax=-16, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "sll1388":
+            elif annotation.text == "Sll1388":
                 annotation.update(showarrow=True,ax=-14,ay=.4, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "chlI":
+            elif annotation.text == "ChlI":
                 annotation.update(showarrow=True,ax=annotation.x,ay=.45, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "sll0921":
+            elif annotation.text == "Sll0921":
                 annotation.update(showarrow=True,ax=annotation.x,ay=.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "pgm":
+            elif annotation.text == "Pgm":
                 annotation.update(showarrow=True,ax=-3.5, ay=.57, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "sll1967":
+            elif annotation.text == "Sll1967":
                 annotation.update(showarrow=True,ax=0,ay=.55, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "slr0782":
+            elif annotation.text == "Slr0782":
                 annotation.update(showarrow=True,ax=0.5,ay=.4, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "queF":
+            elif annotation.text == "QueF":
                 annotation.update(showarrow=True,ax=1,ay=.35, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
 
 

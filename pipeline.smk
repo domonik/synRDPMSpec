@@ -26,7 +26,8 @@ rule all:
         rdeep_rapdor = rules.runRAPDORonRDeePNorm.output,
         rpla = rules.combineFigure3.output,
         fig = rules.plotSpearmans.output,
-        ts1 = rules.detectedProteinTable.output
+        ts1 = rules.detectedProteinTable.output,
+        tophits = rules.plotTopHitDistribution.output
 
 
 
