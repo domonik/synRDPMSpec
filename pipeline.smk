@@ -17,7 +17,7 @@ rule all:
         #rna_binding = rules.extractGORNABinding.output,
         #enrich = rules.GOEnrichment.output,
         #benchmark = rules.plotRuntime.output,
-        #salmonella = rules.runIdentifierOnSalmonella.output,
+        salmonella = rules.runIdentifierOnSalmonella.output,
         syn_cond = expand(rules.runOnSynData.output, condition=["COLD", "HEAT", "DARK", "N", "Fe"]),
         overlapping_data = rules.extract_tophits.output,
         fig4 = rules.createFigure4.output,
@@ -27,7 +27,16 @@ rule all:
         rpla = rules.combineFigure3.output,
         fig = rules.plotSpearmans.output,
         ts1 = rules.detectedProteinTable.output,
-        tophits = rules.plotTopHitDistribution.output
+        tophits = expand(rules.plotTopHitDistributions.output, distribution=config["distributions"].keys()),
+        #fit = rules.fitMultiGaussian.output
+        final_data = rules.postProcessRapdorData.output,
+        histo = rules.plotANOSIMRDistribution.output,
+        qq = rules.produceArtificialSoftArgMaxExample.output,
+        distinct = rules.theoreticalDistinctRValues.output,
+        naturego = expand(rules.GOTermEnrichmentMouseNature.output, experiment=config["Mouse"].keys()),
+        naturekegg = expand(rules.KEGGEnrichmentMouseNature.output, experiment=config["Mouse"].keys()),
+        naturrap = expand(rules.AnalyzeNatureWithRAPDOR.output, experiment=config["Mouse"].keys()),
+        naturekeggplot = rules.joinNaturePlot.output,
 
 
 

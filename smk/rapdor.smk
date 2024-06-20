@@ -63,7 +63,6 @@ rule run_RAPDOR:
         rbpmdata = RAPDORData(df=df, design=design, logbase=2)
         rbpmdata.normalize_and_get_distances(method="Jensen-Shannon-Distance", kernel=3)
         rbpmdata.calc_all_scores()
-
         rbpmdata.rank_table(["ANOSIM R", "Mean Distance"], ascending=(False, False))
         rbpmdata.to_json(output.json)
         rbpmdata.export_csv(output.tsv, sep="\t")
@@ -95,7 +94,8 @@ rule runOnSynData:
         intensities=rules.prepareSynConditionedMS.output.intensities,
         design=rules.prepareSynConditionedMS.output.design,
     output:
-        json = "Pipeline/ConditionedSynechocystis/JSON/{condition}_Analyzed.json"
+        json = "Pipeline/ConditionedSynechocystis/analyzed/{condition}_Analyzed.json",
+        tsv = "Pipeline/ConditionedSynechocystis/analyzed/{condition}_Analyzed.tsv"
     run:
         from RAPDOR.datastructures import RAPDORData
         import pandas as pd
@@ -107,4 +107,5 @@ rule runOnSynData:
         rbpmdata.calc_all_scores()
         rbpmdata.rank_table(["ANOSIM R", "Mean Distance"],ascending=(False, False))
         rbpmdata.to_json(output.json)
+        rbpmdata.export_csv(output.tsv,sep="\t")
 

@@ -2,11 +2,9 @@
 intensities: "Data/synIntensitiesIBAQ.tsv"
 design: "Data/synDesignIBAQ.tsv"
 
-distributions:
-  rplA: [447]
-  rna_binding:
-    GO RNA-binding: true
-    ribosomal protein: false
+bubble_plot:
+  locus_tag: ["sll1967", "slr1531", "sll1388", "slr0782", "sll0921", "sll0947", "slr0711", "slr0147", "sll0517", "sll0726", "slr1143", "slr2130", "sll7087", "sll0284", "slr0678", "slr1030", "slr2076", "slr2002", "ssl3335"
+  ]
 
 benchmark_repeats:  1
 fonts:
@@ -43,6 +41,32 @@ F3:
   C:
     height: 130
 
+distributions:
+  D1:
+    locus_tags: ["sll1388", "slr0782", "sll0921", "sll0947", "slr0711", "slr0147", "sll0726", "slr1143", "slr2130", "sll0284", "slr0678", "slr1030", "slr2076", "slr2002", "ssl3335"]
+    height: 900
+    vertical_spacing: 0.022
+    legend2_y: 1.05
+  D2:
+    locus_tags: ["sll1967" ,"slr1531","sll0517" ,"slr1265" ,"sll7087"]
+    height: 500
+    vertical_spacing: 0.05
+    legend2_y: 1.1
+  D3:
+    locus_tags: [ "slr1356" ,"slr1984" ]
+    height: 300
+    vertical_spacing: 0.1
+    legend2_y: 1.15
+
+
+natureMouseFig:
+  A:
+    height: 300
+  B:
+    ids: ["Stat5b", "Fgfr4"]
+    height: 500
+    vertical_spacing: 0.022
+    legend2_y: 1.1
 
 
 species: "sp"
@@ -52,5 +76,24 @@ tax_id: 11117
 minGSSize: 30
 maxGSSize: 500
 
-nr_proteins: 200
+anosimCutoff: 0.5
 multipanel_font_size: 18
+
+Mouse:
+  muscle:
+    link: "https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-021-27398-y/MediaObjects/41467_2021_27398_MOESM16_ESM.xlsx"
+    data_sheet: "S13B-log2 proc MouseMuscle PROT"
+    col_sheet: "S13A-Output SN MouseMuscle PROT"
+  egf_kidney:
+    link: "https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-021-27398-y/MediaObjects/41467_2021_27398_MOESM11_ESM.xlsx"
+    data_sheet: "S8B-log2 processed data Kidney"
+    col_sheet: "S8A-Output SN Kidney"
+  egf_liver:
+    link: "https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-021-27398-y/MediaObjects/41467_2021_27398_MOESM12_ESM.xlsx"
+    data_sheet: "S9B-log2 processed Liver"
+    col_sheet: "S9A-Output Spectronaut Liver"
+
+  egf_8min:
+    link: "https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-021-27398-y/MediaObjects/41467_2021_27398_MOESM12_ESM.xlsx"
+    data_sheet: "S9B-log2 processed Liver"
+    col_sheet: "S9A-Output Spectronaut Liver"

@@ -135,13 +135,13 @@ rule prepareSalmonellaData:
 
         design = {"Name": [], "Treatment": [], "Fraction": [], "Replicate": []}
         for orig_col in df.columns[2:]:
-            col = orig_col
-            if col[-1] == "R":
-                rnase = True
-                col = col[0:-1]
+            ncol = orig_col
+            if ncol[-1] == "R":
+                rnase = "RNase"
+                ncol = ncol[0:-1]
             else:
-                rnase = False
-            fraction = int(col.split(" ")[-1])
+                rnase = "Control"
+            fraction = int(ncol.split(" ")[-1])
             rep = 1
             design["Name"].append(orig_col)
             design["Treatment"].append(rnase)
@@ -197,6 +197,8 @@ rule prepareinitialData:
         # design = design[~design["Name"].isin([f"ctrl{idx}-20" for idx in range(1, 4)])]
         # design = design[~design["Name"].isin([f"rnase{idx}-20" for idx in range(1, 4)])]
 
+        rapdor_table = rapdor_table[~rapdor_table["id"].isin([1714, 1743, 0])]
+
         rapdor_table.to_csv(output.sanitized_df, sep="\t", index=False)
         design.to_csv(output.design, sep="\t", index=False)
 
@@ -235,15 +237,107 @@ rule prepareSynConditionedMS:
 
         df = soluble.merge(membrane, on=["Accession", "Gene_symbol"])
         design = {"Name": [], "Treatment": [], "Fraction": [], "Replicate": []}
-        for col in df.columns[2:]:
-            rnase, replicate, fraction = multi_delimiter_split(col, ["-", "_"])
+        for ncol in df.columns[2:]:
+            rnase, replicate, fraction = multi_delimiter_split(ncol, ["-", "_"])
 
             design["Treatment"].append(wildcards.condition if rnase == wildcards.condition else "Control")
             design["Replicate"].append(replicate)
             design["Fraction"].append(fraction)
-            design["Name"].append(col)
+            design["Name"].append(ncol)
         design = pd.DataFrame(design)
         df = df.rename({"Gene_symbol": "Gene"}, axis=1)
         df.to_csv(output.intensities,sep="\t",index=False)
         design.to_csv(output.design ,sep="\t",index=False)
+
+rule downloadNatureData:
+    output:
+        muscle="Pipeline/NatureMouse/RawData/{experiment}.xlsx",
+    params:
+        link = lambda wildcards: config["Mouse"][wildcards.experiment]["link"]
+    shell:
+        """
+        wget {params.link} -O {output.muscle}
+        """
+
+def split_muscle(df):
+    names, treatments, replicates, fractions = ([] for _ in range(4))
+    for col in df.columns[1:]:
+        ncol = col.split("_")
+        names.append(col)
+        replicates.append(ncol[-2])
+        fractions.append(ncol[-1])
+        treatments.append("Contracted" if len(ncol) == 4 else "Control")
+        df[col][df[col] == 0] = np.nan
+    return names, treatments, replicates, fractions, df
+
+def split_kidney(df):
+    names, treatments, replicates, fractions = ([] for _ in range(4))
+    for col in df.columns[1:]:
+        ncol = col.split("_")
+        names.append(col)
+        replicates.append(ncol[2])
+        fractions.append(ncol[1])
+        treatments.append(ncol[0])
+        df[col][df[col] == 0] = np.nan
+    return names, treatments, replicates, fractions, df
+
+def split_liver(df):
+    df = df.rename({"CTRL_FR1_REP3_01_20201002195754": "CTRL_FR1_REP4_01"}, axis=1)
+    return *split_kidney(df),
+
+SPLITFCTS = {
+    "muscle": split_muscle,
+    "egf_kidney": split_kidney,
+    "egf_liver": split_liver,
+}
+
+RENAMEFRCT = {
+    "FR1": "Cytosolic (FR1)",
+    "FR2": "Cytosolic (FR2)",
+    "FR3": "Membrane-bound organelles (FR3)",
+    "FR4": "Membrane-bound organelles (FR4)",
+    "FR5": "Nucleus & Nucleolus (FR5)",
+    "FR6": "Nucleus & Nucleolus (FR6)",
+}
+
+rule AnalyzeNatureWithRAPDOR:
+    input:
+        xlsx = rules.downloadNatureData.output.muscle
+    output:
+        design = "Pipeline/NatureMouse/prepared/{experiment}_design.tsv",
+        df = "Pipeline/NatureMouse/prepared/{experiment}_intensities.tsv",
+        tsv= "Pipeline/NatureMouse/analyzed/{experiment}_intensities_analyzed.tsv",
+        json = "Pipeline/NatureMouse/analyzed/{experiment}_intensities.json"
+    run:
+        import pandas as pd
+        from RAPDOR.datastructures import RAPDORData
+        cfg = config["Mouse"][wildcards.experiment]
+        df = pd.read_excel(input.xlsx, sheet_name=cfg["data_sheet"])
+        addinfo = pd.read_excel(input.xlsx, sheet_name=cfg["col_sheet"])
+        addinfo = addinfo[["PG.Genes", "PG.ProteinDescriptions", "PG.ProteinGroups"]]
+        addinfo["PG.ProteinGroups"] = addinfo["PG.ProteinGroups"].str.split(";").str[0]
+        split_fct = SPLITFCTS[wildcards.experiment]
+        names, treatments, replicates, fractions, df = split_fct(df)
+        fractions = [RENAMEFRCT[frac] for frac in fractions]
+        design = pd.DataFrame(
+            {"Name": names, "Treatment": treatments, "Fraction": fractions, "Replicate": replicates}
+        )
+        design.to_csv(output.design, sep="\t", index=False)
+        df = df.merge(addinfo, on="PG.Genes", how="left")
+        print(design)
+        print(df)
+
+        df.to_csv(output.df, sep="\t", index=False)
+        data = RAPDORData(df = df, design=design, logbase=2)
+        data.normalize_and_get_distances(method="Jensen-Shannon-Distance")
+
+        data.calc_all_scores()
+        data.rank_table(["ANOSIM R", "Mean Distance"], ascending=(False, False))
+        mean1 = np.nansum(np.nanmean(data.array[:, data.indices[0]],axis=-2),axis=-1)
+        mean2 = np.nansum(np.nanmean(data.array[:, data.indices[1]],axis=-2),axis=-1)
+
+        data.df["rawDiff"] = np.abs(mean1 - mean2)
+
+        data.to_json(output.json)
+        data.export_csv(output.tsv ,sep="\t")
 

@@ -1,3 +1,6 @@
+import os.path
+import pandas as pd
+import numpy as np
 
 include: "rapdor.smk"
 include: "benchmarking.smk"
@@ -28,6 +31,23 @@ DEFAULT_TEMPLATE = DEFAULT_TEMPLATE.update(
     )
 
 )
+
+
+
+rule fitMultiGaussian:
+    input:
+        json = rules.run_RAPDOR.output.json,
+    output:
+        file = "Pipeline/gaussianFit/table.tsv"
+    threads: 8
+    run:
+        from pyfunctions.helpers import determineFits
+        df = determineFits(input.json, nr_cores=threads)
+        df.to_csv(output.file)
+
+
+
+
 
 
 rule joinAnalysisMethods:
@@ -86,13 +106,12 @@ rule extract_tophits:
         import pandas as pd
         df = pd.read_csv(input.tsv, sep="\t")
 
-        interesting_candidates = [417, 777, 1024, 853, 964, 1284, 1574, 1314, 1599, 360]
         svm_candidates = [300, 643, 421]
         top200SVM = set(
             df[df["RAPDORid"].isin(svm_candidates)]["old_locus_tag"]
         )
 
-        top200RDPM = set(df[df["RAPDORid"].isin(interesting_candidates)]["old_locus_tag"])
+        topRDPM = set(df[df["ANOSIM R"] >= config["anosimCutoff"]]["old_locus_tag"])
         df = df[
             [
                 "RAPDORid",
@@ -112,7 +131,7 @@ rule extract_tophits:
                 "contains empty replicate",
             ]
         ]
-        all = top200RDPM | top200SVM
+        all = topRDPM | top200SVM
         all = df[df["old_locus_tag"].isin(all)]
         all.to_csv(output.tsv,sep="\t",index=False)
         all = all[all["ribosomal protein"] == False]
@@ -168,7 +187,6 @@ rule plotVennDiagramm:
             tsv = "Pipeline/postProcessing/topCandidates_set{set}.tsv",
             json = "Pipeline/plots/VennDiagramm_set{set}.json",
         run:
-            NUMBER_PROTEINS = config["nr_proteins"]
             from RAPDOR.plots import COLOR_SCHEMES, _color_to_calpha
             import pandas as pd
             import numpy as np
@@ -185,19 +203,19 @@ rule plotVennDiagramm:
             top200SVM = set(
                 result_df[result_df["SVM RNA-binding"] == True]["old_locus_tag"]
             )
-            top200RDPM = set(result_df[result_df["Rank"] <= NUMBER_PROTEINS]["old_locus_tag"])
+            topRDPM = set(result_df[result_df["ANOSIM R"] >= config["anosimCutoff"]]["old_locus_tag"])
 
             topRDeep = set(
                 result_df[(result_df["rnase_peak_p_value"] <= 0.05) | (result_df["ctrl_peak_p_value"] <= 0.05)]["old_locus_tag"]
             )
 
-            all = topRDeep.union(top200RDPM).union(top200SVM)
+            all = topRDeep.union(topRDPM).union(top200SVM)
             all = result_df[result_df["old_locus_tag"].isin(all)]
             all = all[["RAPDORid", "old_locus_tag", "Gene",  "Mean Distance", "relative fraction shift",  "ANOSIM R", "RDeeP significant", "SVM RNA-binding", "Rank", "ribosomal protein"]]
             all.to_csv(output.tsv, sep="\t", index=False)
             colors = list(COLOR_SCHEMES["Dolphin"]) + [COLOR_SCHEMES["Viking"][0]]
             colors = [_color_to_calpha(col, alpha=0.6) for col in colors]
-            fig = venn_to_plotly(L_sets=(top200RDPM, top200SVM, topRDeep), L_labels=("RAPDOR", "TripepSVM", "RDeeP"), L_color=colors)
+            fig = venn_to_plotly(L_sets=(topRDPM, top200SVM, topRDeep), L_labels=("RAPDOR", "TripepSVM", "RDeeP"), L_color=colors)
             fig.update_layout(template=DEFAULT_TEMPLATE)
             fig.update_layout(
                 xaxis=dict(showgrid=False,zeroline=False, showline=False),
@@ -370,36 +388,37 @@ rule rplaDistribution:
         fig.write_image(output.svg)
 
 
-rule plotTopHitDistribution:
+rule plotTopHitDistributions:
     input:
         tophits = rules.extract_tophits.output.tsv2,
         json = rules.run_RAPDOR.output.json
     output:
-        svg = "Pipeline/Paper/Figure5.svg"
+        svg = "Pipeline/Paper/Distribution{distribution}.svg"
     run:
         import pandas as pd
         from RAPDOR.datastructures import RAPDORData
         import pandas as pd
         import math
         from RAPDOR.plots import plot_protein_distributions
-
+        dist_config = config["distributions"][wildcards.distribution]
         with open(input.json) as handle:
             rapdor_data = RAPDORData.from_json(handle.read())
-        df = pd.read_csv(input.tophits, sep="\t")
-        topids = df["RAPDORid"]
+        df = rapdor_data.df
+        topids = df[df["old_locus_tag"].isin(dist_config["locus_tags"])]["RAPDORid"]
         fig = plot_protein_distributions(
             topids, rapdordata=rapdor_data, colors=COLOR_SCHEMES["Dolphin"],
-            plot_type="zoomed", column_widths=[0.7, 0.3], horizontal_spacing=0.075, title_col="Protein name"
+            plot_type="zoomed", column_widths=[0.7, 0.3], horizontal_spacing=0.075, title_col="Protein name", vertical_spacing=dist_config["vertical_spacing"]
         )
-        fig.update_layout(template=DEFAULT_TEMPLATE, width=config["width"], height=900)
+        fig.update_layout(template=DEFAULT_TEMPLATE, width=config["width"], height=dist_config["height"])
         fig.update_layout(
             legend=dict(font=config["fonts"]["legend"], y=1.015),
-            legend2=dict(font=config["fonts"]["legend"], y=1.05),
+            legend2=dict(font=config["fonts"]["legend"], y=dist_config["legend2_y"]),
         )
         fig.update_annotations(font=config["fonts"]["annotations"])
         fig.update_traces(line=dict(width=2),
                 marker=dict(size=3),)
-
+        fig.update_yaxes(nticks=2, col=2)
+        fig.update_yaxes(nticks=3, col=1)
         fig.write_image(output.svg)
 
 rule plotMeanDistribution:
@@ -474,7 +493,7 @@ rule plotBarcodePlot:
         colors = (COLOR_SCHEMES["Dolphin"][0], COLOR_SCHEMES["Dolphin"][1], COLOR_SCHEMES["Viking"][0])
 
         d = {"small subunit": small_subunit, "large subunit": large_subunit, "photosystem": photosystem}
-        fig = rank_plot(d, data, colors)
+        fig = rank_plot(d, data, colors, orientation="h", triangles="inside", tri_x=17, tri_y=0.2)
 
         fig.update_layout(
             width=config["width"], height=config["F3"]["C"]["height"],
@@ -580,9 +599,11 @@ rule plotAllVenns:
             else:
                 annotation.update(font=config["fonts"]["annotations"], xanchor="center", yanchor="middle")
                 if annotation.text == "0":
-                    annotation.update(showarrow=True, ay=-0.5, ax=0.5, axref=annotation.xref, ayref=annotation.yref, arrowcolor='black')
+                    if annotation.xref == "x":
+                        annotation.update(showarrow=True, ay=-0.5, ax=0.5, axref=annotation.xref, ayref=annotation.yref, arrowcolor='black')
                 if annotation.text == "1":
-                    annotation.update(showarrow=True, ay=-0.3, ax=0.7, axref=annotation.xref, ayref=annotation.yref, arrowcolor='black')
+                    if annotation.xref == "x":
+                        annotation.update(showarrow=True, ay=-0.3, ax=0.7, axref=annotation.xref, ayref=annotation.yref, arrowcolor='black')
                 if annotation.text == "4":
                     annotation.update(x=annotation.x - 0.1, y=annotation.y - 0.1)
                 if annotation.text == "8":
@@ -722,6 +743,9 @@ rule createBubblePlot:
         if wildcards.highlight == "overlapping":
             overlapping = pd.read_csv(input.joined, sep="\t")
             ids = data.df[data.df["old_locus_tag"].isin(overlapping["old_locus_tag"])]["RAPDORid"]
+        elif wildcards.highlight == "topHits":
+            df = data.df
+            ids = df[df["old_locus_tag"].isin(config["bubble_plot"]["locus_tag"])]["RAPDORid"]
         else:
             raise ValueError("Not supported")
         data.df['Gene'] = data.df.apply(lambda row: row['old_locus_tag'] if pd.isnull(row['Gene']) or row['Gene'] == '' else row['Gene'], axis=1)
@@ -772,7 +796,7 @@ rule createBubblePlot:
             elif annotation.text == "Sll1388":
                 annotation.update(showarrow=True,ax=-14,ay=.4, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "ChlI":
-                annotation.update(showarrow=True,ax=annotation.x,ay=.45, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=-9 ,ay=.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll0921":
                 annotation.update(showarrow=True,ax=annotation.x,ay=.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Pgm":
@@ -782,7 +806,19 @@ rule createBubblePlot:
             elif annotation.text == "Slr0782":
                 annotation.update(showarrow=True,ax=0.5,ay=.4, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "QueF":
-                annotation.update(showarrow=True,ax=1,ay=.35, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=1.3,ay=.32, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "SecE":
+                annotation.update(showarrow=True,ax=-16,ay=-.05,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "Ffh":
+                annotation.update(showarrow=True,ax=14,ay=-.35,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "Sll0284":
+                annotation.update(showarrow=True,ax=10,ay=.5,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "AroB":
+                annotation.update(showarrow=True,ax=5,ay=-.375,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "Slr0678":
+                annotation.update(showarrow=True,ax=5.5,ay=.43,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "Sll7087":
+                annotation.update(showarrow=True,ax=-7,ay=.56,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
 
 
         fig.write_image(output.svg)
@@ -793,7 +829,7 @@ rule createBubblePlot:
 rule createFigure4:
     input:
         venns = rules.plotAllVenns.output.svg,
-        bubble = expand(rules.createBubblePlot.output.svg, highlight="overlapping")
+        bubble = expand(rules.createBubblePlot.output.svg, highlight="topHits")
     output:
         svg = "Pipeline/Paper/Figure4.svg"
     run:
@@ -824,7 +860,6 @@ rule plotConditionedSynechochoColdRibo:
         html2 = "Pipeline/Paper/FigureS3.html",
         tsv = "Pipeline/Paper/TableforFigureS4.tsv",
         json = "Pipeline/Paper/RAPDORforFigureS4.json",
-
     run:
         from RAPDOR.datastructures import RAPDORData
         from RAPDOR.plots import multi_means_and_histo, rank_plot
@@ -1070,5 +1105,316 @@ rule detectedProteinTable:
         df2.to_csv(output.file2, sep="\t")
         df2.loc['Sum'] = df2.sum(axis=0)
 
+rule calcANOSIMDistribution:
+    input:
+        json=rules.run_RAPDOR.output.json,
+        json_liver=expand(rules.AnalyzeNatureWithRAPDOR.output.json,experiment="egf_liver")
+    output:
+        gradr_json="Pipeline/analyzed/ANOSIMDistributionGradR.json",
+        liver_json="Pipeline/analyzed/ANOSIMDistributionLiver.json",
+    threads: 10
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        gradr_data = input.json
+        liver_data = input.json_liver[0]
+        for plot_id, data in enumerate([(gradr_data, 3, output.gradr_json), (liver_data, 4, output.liver_json), ]):
+            data, samples, outfile = data
+            data = RAPDORData.from_file(data)
+            data: RAPDORData
+            print("starting")
+            data.calc_anosim_p_value(999,threads=threads,mode="global")
+            distribution = data._anosim_distribution
+            print(plot_id, "done")
+            with open(outfile, "wb") as handle:
+                np.save(handle, distribution)
+            data._anosim_distribution = None
+            print("saved")
 
+
+
+rule plotANOSIMRDistribution:
+    input:
+        np=rules.calcANOSIMDistribution.output.gradr_json,
+        np_liver=rules.calcANOSIMDistribution.output.liver_json,
+        json=rules.run_RAPDOR.output.json,
+        json_liver=expand(rules.AnalyzeNatureWithRAPDOR.output.json,experiment="egf_liver")
+    output:
+        svg = "Pipeline/Paper/ANOSIMDistribution.svg",
+    threads: 1
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        import plotly.graph_objs as go
+        from plotly.subplots import make_subplots
+        from scipy.stats import spearmanr
+        gradr_data = input.json
+        liver_data = input.json_liver[0]
+        fig = make_subplots(rows=2)
+        for plot_id, data in enumerate([(gradr_data, 3, input.np), (liver_data, 4, input.np_liver)]):
+            data, samples, array = data
+            data = RAPDORData.from_file(data)
+            print("data loaded")
+            data: RAPDORData
+            with open(array, "rb") as handle:
+                distribution = np.load(handle)
+            print("distribution")
+            indices = data.df[data.df["min replicates per group"] == samples]["id"].to_numpy()
+            print(data.df["min replicates per group"].min())
+            distribution = distribution[:, indices].flatten()
+            distribution = data.df["ANOSIM R"]
+            y, x = np.histogram(
+                distribution,
+                bins=np.linspace(-1, 1, int(np.floor(2/0.05)))
+            )
+            y = y / np.sum(y)
+
+            fig.add_trace(go.Bar(
+                x=x,
+                y=y,
+                marker=dict(
+                    line=dict(color="black", width=1),
+                    color=DEFAULT_COLORS[0],
+
+                ),
+            ), row=plot_id+1, col=1)
+        fig.update_xaxes(title="ANOSIM R")
+        fig.update_yaxes(title="probability")
+        fig.update_layout(template=DEFAULT_TEMPLATE)
+        fig.update_layout(width=config["width"])
+        fig.update_layout(height=config["height"] / 2)
+        fig.update_layout(font=config["fonts"]["default"])
+        fig.write_image(output.svg)
+
+
+rule theoreticalDistinctRValues:
+    input:
+        json=rules.run_RAPDOR.output.json,
+    output:
+        tsv = "Pipeline/Paper/NrDistinctRValues.tsv"
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        import numpy as np
+        import pandas as pd
+        data = RAPDORData.from_file(input.json)
+
+        def distinct_perms(n):
+            return np.math.factorial(2 * n) / (2 * np.square(np.math.factorial(n)))
+
+        nr_protein = len(data.df[~data.df["contains empty replicate"].to_numpy()])
+        df = {
+            "Replicates per group": [],
+            "local distinct R values": [],
+            "global distinct R values": []
+        }
+        for n in range(2, 7):
+            df["Replicates per group"].append(n)
+            perms = distinct_perms(n)
+            df["local distinct R values"].append(perms)
+            df["global distinct R values"].append(perms * nr_protein)
+        df = pd.DataFrame(df)
+        df.to_csv(output.tsv, sep="\t", index=False)
+
+
+rule produceArtificialSoftArgMaxExample:
+    output:
+        svg = "Pipeline/Paper/artificialSoftArgMaxExample.svg"
+    run:
+        import numpy as np
+        from scipy.special import rel_entr
+        import plotly.graph_objs as go
+        from plotly.subplots import make_subplots
+
+        ctrl_mean = np.asarray([0.02, 0.02, 0.02, 0.02, 0, 0,0.25, 0.42, 0.25, 0., 0])
+
+        treatment_mean = np.asarray([0.1, 0.1, 0.1, 0.1, 0.05, 0.05, 0.1, 0.16, 0.14, 0.1, 0])
+        assert np.allclose(ctrl_mean.sum(), 1), ctrl_mean.sum()
+        assert np.allclose(treatment_mean.sum(), 1), treatment_mean.sum()
+        mid = .5 * (ctrl_mean + treatment_mean)
+        rel1 = rel_entr(ctrl_mean,mid)
+        rel2 = rel_entr(treatment_mean,mid)
+        fig = go.Figure()
+        x_range = np.arange(0, len(ctrl_mean))
+        fig.add_trace(
+            go.Scatter(
+                y=ctrl_mean,
+                x=x_range,
+                name="Control mean",
+                line=dict(color=DEFAULT_COLORS[0])
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                y=treatment_mean,
+                x=x_range,
+                name="Treatment mean",
+                line=dict(color=DEFAULT_COLORS[1])
+
+            )
+        )
+
+        for idx, beta in enumerate((10, 1000)):
+            softmax1 = ((np.exp(beta * rel1)) / np.nansum(np.exp(beta * rel1),axis=-1,keepdims=True))
+            softmax2 = ((np.exp(beta * rel2)) / np.nansum(np.exp(beta * rel2),axis=-1,keepdims=True))
+            r1 = np.nansum(softmax1 * x_range, axis=-1)
+            r2 = np.nansum(softmax2 * x_range, axis=-1)
+            fig.add_vline(
+                x=r1,
+                #line=dict(color=DEFAULT_COLORS[idx]),
+                name="r1"
+            )
+            fig.add_vline(
+                x=r2,
+                #line=dict(color=DEFAULT_COLORS[idx]),
+                name=""
+
+            )
+            fig.add_annotation(
+                x=r2,
+                y=0.25,
+                ax=r1,
+                ay=0.25,
+                axref="x",
+                ayref="y",
+                showarrow=True,
+                arrowwidth=3,
+                arrowhead=3,
+                text=""
+            )
+            fig.add_annotation(
+                x=(r2 + r1) / 2,
+                y=0.26,
+                axref="x",
+                ayref="y",
+                yanchor="bottom",
+                text=f"<b>RPS</b><br>(\u03b2= {beta})",
+                showarrow=False
+            )
+        fig.update_layout(
+            template=DEFAULT_TEMPLATE,
+            width=config["width"],
+            height=300,
+            font=config["fonts"]["default"]
+        )
+        fig.write_image(output.svg)
+
+
+rule GOTermEnrichmentMouseNature:
+    input:
+        file = rules.AnalyzeNatureWithRAPDOR.output.tsv
+    conda: "../envs/ClusterProfiler.yml"
+    output:
+        enriched = directory("Pipeline/NatureMouse/GO/{experiment}GOEnrichment/",)
+    script: "../Rscripts/AnalyzeGoTermsMouse.R"
+
+
+rule KEGGEnrichmentMouseNature:
+    input:
+        file = rules.AnalyzeNatureWithRAPDOR.output.tsv
+    conda: "../envs/ClusterProfiler.yml"
+    output:
+        enriched = directory("Pipeline/NatureMouse/KEGG/{experiment}GOEnrichment/",)
+    script: "../Rscripts/AnalyzeKEGG.R"
+
+rule plotKEGGEnrichment:
+    input:
+        file = expand(rules.KEGGEnrichmentMouseNature.output.enriched, experiment="egf_liver")
+    output:
+        svg = "Pipeline/Paper/Subfigures/KEGGEnrichment.svg"
+    run:
+        from pyfunctions.helpers import enrichment_plot_from_cp_table
+        df_file = os.path.join(input.file[0], "AllFractions.tsv")
+        df = pd.read_csv(df_file, sep="\t")
+        df = df[df["category"] != "Human Diseases"]
+        df["ONTOLOGY"] = "KEGG"
+        df["Description"] = df["Description"].str.replace(" - Mus musculus (house mouse)", "")
+        df = df.sort_values(by="p.adjust", ascending=False)
+
+        fig = enrichment_plot_from_cp_table(df, mode="bar", colors=(DEFAULT_COLORS[1], DEFAULT_COLORS[0]))
+        fig.update_layout(
+            template=DEFAULT_TEMPLATE,
+            font=config["fonts"]["default"],
+            width=config["width"],
+            height = config["natureMouseFig"]["A"]["height"]
+
+        )
+        fig.write_image(output.svg)
+
+rule plotExampleDistributions:
+    input:
+        json = expand(rules.AnalyzeNatureWithRAPDOR.output.json, experiment="egf_liver")
+    output:
+        svg = "Pipeline/Paper/Subfigures/NatureMouseDistributions.svg"
+    run:
+        from RAPDOR.datastructures import RAPDORData
+
+        from RAPDOR.plots import plot_protein_distributions
+        rapdor_data = RAPDORData.from_file(input.json[0])
+        df = rapdor_data.df
+        dist_config = config["natureMouseFig"]["B"]
+        topids = dist_config["ids"]
+        fig = plot_protein_distributions(
+            topids, rapdordata=rapdor_data, colors=COLOR_SCHEMES["Dolphin"], mode="bar",
+            plot_type="mixed", column_widths=[0.5, 0.5], horizontal_spacing=0.1, title_col="RAPDORid", vertical_spacing=dist_config["vertical_spacing"]
+        )
+        fig.update_layout(template=DEFAULT_TEMPLATE, width=config["width"], height=dist_config["height"])
+        fig.update_layout(
+            legend=dict(font=config["fonts"]["legend"], y=1.015),
+            legend2=dict(font=config["fonts"]["legend"], y=dist_config["legend2_y"]),
+        )
+        fig.update_annotations(font=config["fonts"]["annotations"])
+        fig.update_traces(
+            error_y=dict(width=3)
+        )
+        fig.update_layout(
+            margin=dict(l=60, b=120)
+        )
+        for annotation in fig.layout.annotations:
+            if annotation.text == "Fraction":
+                annotation.update(y=-0.22)
+        print(fig.layout.annotations)
+        fig.update_yaxes(nticks=2, col=2)
+        fig.update_yaxes(nticks=3, col=1)
+        fig.write_image(output.svg)
+
+rule joinNaturePlot:
+    input:
+        a = rules.plotKEGGEnrichment.output.svg,
+        b = rules.plotExampleDistributions.output.svg
+    output:
+        svg = "Pipeline/Paper/FigureMouse.svg"
+    run:
+        from svgutils.compose import Figure, Panel, SVG, Text
+
+        b_y = config["natureMouseFig"]["A"]["height"]
+        ges_y = b_y +  config["natureMouseFig"]["B"]["height"]
+        f = Figure("624px",f"{ges_y}px",
+            Panel(
+                SVG(input.a),
+                Text("A",2,15,size=config["multipanel_font_size"],weight='bold',font="Arial")
+
+            ),
+            Panel(
+                SVG(input.b),
+                Text("B",2,2,size=config["multipanel_font_size"],weight='bold',font="Arial")
+            ).move(0,b_y),
+        )
+        svg_string = f.tostr()
+        svg_string = svg_string.decode().replace("encoding='ASCII'","encoding='utf-8'")
+        with open(output.svg,"w") as handle:
+            handle.write(svg_string)
+
+
+rule postProcessRapdorData:
+    input:
+        json=rules.run_RAPDOR.output.json,
+        drop="Data/drop_columns.txt"
+    output:
+        file = "Pipeline/Paper/synechoRAPDORFile.json",
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        with open(input.drop) as handle:
+            drop = [line.rstrip() for line in handle]
+
+        data = RAPDORData.from_file(input.json)
+        data.df = data.df.drop(drop, axis=1)
+        data.to_json(output.file)
 
