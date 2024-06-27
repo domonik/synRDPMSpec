@@ -1,6 +1,7 @@
 suppressPackageStartupMessages({
   library(clusterProfiler)
   library(org.Mm.eg.db)
+  library(org.Hs.eg.db)
 })
 
 
@@ -9,16 +10,22 @@ ranked_table <- read.table(ranked_file, sep="\t", header=TRUE)
 ranked_table <- na.omit(ranked_table)
 print(head(ranked_table))
 my_list <- list()
+experiment_str <- snakemake@wildcards[["experiment"]]
+
+if (grepl("egf", experiment_str) & grepl("min", experiment_str)) {
+  organism <- org.Hs.eg.db
+} else {
+  organism <- org.Mm.eg.db
+}
 for (nr in 1:6) {
   up <- ranked_table$"ANOSIM.R" >= 0.5 & grepl(paste0("FR", nr), ranked_table$"position.strongest.shift")
   up <- ranked_table[up,]
   entrezid_entries <- head(select(org.Mm.eg.db, keys = keys(org.Mm.eg.db), columns = "UNIPROT"))
   overlap_entrezid <- any(as.character(ranked_table$"PG.ProteinGroups") %in% keys(org.Mm.eg.db, keytype = "UNIPROT"))
 
-
   egoBPup <- enrichGO(gene = as.character(up$"PG.ProteinGroups"),
                       universe = as.character(ranked_table$"PG.ProteinGroups"),
-                      OrgDb = org.Mm.eg.db,
+                      OrgDb = organism,
                       keyType = "UNIPROT",
                       ont = "ALL",
                       pAdjustMethod = "BH",

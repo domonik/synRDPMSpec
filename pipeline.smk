@@ -20,7 +20,8 @@ rule all:
         salmonella = rules.runIdentifierOnSalmonella.output,
         syn_cond = expand(rules.runOnSynData.output, condition=["COLD", "HEAT", "DARK", "N", "Fe"]),
         overlapping_data = rules.extract_tophits.output,
-        fig4 = rules.createFigure4.output,
+        fig5 = rules.createFigure5.output,
+        fig4 = rules.plotAllVenns.output,
         table1 = rules.createTable1andTableS1.output,
         figs2 = rules.plotConditionedSynechochoColdRibo.output,
         rdeep_rapdor = rules.runRAPDORonRDeePNorm.output,
@@ -33,10 +34,10 @@ rule all:
         histo = rules.plotANOSIMRDistribution.output,
         qq = rules.produceArtificialSoftArgMaxExample.output,
         distinct = rules.theoreticalDistinctRValues.output,
-        naturego = expand(rules.GOTermEnrichmentMouseNature.output, experiment=config["Mouse"].keys()),
-        naturekegg = expand(rules.KEGGEnrichmentMouseNature.output, experiment=config["Mouse"].keys()),
+        #naturego = expand(rules.GOTermEnrichmentMouseNature.output, experiment=config["Mouse"].keys()),
+        #naturekegg = expand(rules.KEGGEnrichmentMouseNature.output, experiment=config["Mouse"].keys()),
         naturrap = expand(rules.AnalyzeNatureWithRAPDOR.output, experiment=config["Mouse"].keys()),
-        naturekeggplot = rules.joinNaturePlot.output,
+        HelaPlot = rules.joinHeLaPlot.output,
 
 
 

@@ -4,5 +4,6 @@ channels:
 dependencies:
  - r-base
  - bioconductor-org.mm.eg.db
+ - bioconductor-org.Hs.eg.db
  - bioconductor-clusterprofiler
  - r-tidyr

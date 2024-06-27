@@ -393,7 +393,7 @@ rule plotTopHitDistributions:
         tophits = rules.extract_tophits.output.tsv2,
         json = rules.run_RAPDOR.output.json
     output:
-        svg = "Pipeline/Paper/Distribution{distribution}.svg"
+        svg = "Pipeline/Paper/Subfigures/Distribution{distribution}.svg"
     run:
         import pandas as pd
         from RAPDOR.datastructures import RAPDORData
@@ -513,7 +513,7 @@ rule plotAllVenns:
     input:
         files = expand(rules.plotVennDiagramm.output.json, set=["others", "ribosomes", "rna_binding"])
     output:
-        svg = "Pipeline/Paper/Subfigures/VennDiagramm_all.svg"
+        svg = "Pipeline/Paper/Figure4.svg"
     run:
         import plotly.graph_objs as go
         import plotly.subplots as sp
@@ -619,8 +619,8 @@ rule plotRuntime:
     input:
         all_benchmark = rules.meanRuntimeAndRAM.output.file
     output:
-        html = "Pipeline/Paper/benchmark.html",
-        svg = "Pipeline/Paper/benchmark.svg"
+        html = "Pipeline/Paper/Supplementary/html/benchmark.html",
+        svg = "Pipeline/Paper/Supplementary/FigureS5.svg"
     run:
         import plotly.graph_objs as go
         import plotly.express as px
@@ -826,40 +826,26 @@ rule createBubblePlot:
         fig.write_json(output.json)
 
 
-rule createFigure4:
+rule createFigure5:
     input:
-        venns = rules.plotAllVenns.output.svg,
         bubble = expand(rules.createBubblePlot.output.svg, highlight="topHits")
     output:
-        svg = "Pipeline/Paper/Figure4.svg"
-    run:
-        from svgutils.compose import Figure, Panel, SVG, Text
-
-        f = Figure("624px","650px",
-            Panel(
-                SVG(input.venns),
-            ),
-            Panel(
-                SVG(input.bubble[0]),
-                Text("D", 10, 30,size=config["multipanel_font_size"],weight='bold', font="Arial")
-            ).move(0, 250)
-        )
-        svg_string = f.tostr()
-
-        svg_string = svg_string.decode().replace("encoding='ASCII'", "encoding='utf-8'")
-        with open(output.svg, "w") as handle:
-            handle.write(svg_string)
+        svg = "Pipeline/Paper/Figure5.svg"
+    shell:
+        """
+        cp {input.bubble[0]} {output.svg}
+        """
 
 
 rule plotConditionedSynechochoColdRibo:
     input:
         json = expand(rules.runOnSynData.output.json, condition="COLD")
     output:
-        svg = "Pipeline/Paper/FigureS2.svg",
-        svg2 = "Pipeline/Paper/FigureS3.svg",
-        html2 = "Pipeline/Paper/FigureS3.html",
-        tsv = "Pipeline/Paper/TableforFigureS4.tsv",
-        json = "Pipeline/Paper/RAPDORforFigureS4.json",
+        svg = "Pipeline/Paper/unused/FigureS2.svg",
+        svg2 = "Pipeline/Paper/Supplementary/FigureS6.svg",
+        html2 = "Pipeline/Paper/Supplementary/html/FigureS6.html",
+        tsv = "Pipeline/Paper/Supplementary/TableforFigureS6.tsv",
+        json = "Pipeline/Paper/Supplementary/RAPDORforFigureS6.json",
     run:
         from RAPDOR.datastructures import RAPDORData
         from RAPDOR.plots import multi_means_and_histo, rank_plot
@@ -1108,59 +1094,132 @@ rule detectedProteinTable:
 rule calcANOSIMDistribution:
     input:
         json=rules.run_RAPDOR.output.json,
-        json_liver=expand(rules.AnalyzeNatureWithRAPDOR.output.json,experiment="egf_liver")
+        json_cold_shock=expand(rules.runOnSynData.output.json, condition="COLD")
+
     output:
-        gradr_json="Pipeline/analyzed/ANOSIMDistributionGradR.json",
-        liver_json="Pipeline/analyzed/ANOSIMDistributionLiver.json",
+        gradr_np="Pipeline/analyzed/ANOSIMDistributionGradR.json",
+        cold_shock_syn="Pipeline/analyzed/ANOSIMDistributionColdShock.np",
     threads: 10
     run:
         from RAPDOR.datastructures import RAPDORData
+        import multiprocessing
+
+        multiprocessing.set_start_method(method="spawn", force=True)
         gradr_data = input.json
-        liver_data = input.json_liver[0]
-        for plot_id, data in enumerate([(gradr_data, 3, output.gradr_json), (liver_data, 4, output.liver_json), ]):
+        cold = input.json_cold_shock[0]
+        iter_data = [
+            (gradr_data, 3, output.gradr_np),
+
+            (cold, 3, output.cold_shock_syn),
+        ]
+        for plot_id, data in enumerate(iter_data):
             data, samples, outfile = data
             data = RAPDORData.from_file(data)
             data: RAPDORData
             print("starting")
-            data.calc_anosim_p_value(999,threads=threads,mode="global")
+            data.calc_anosim_p_value(-1,threads=threads, mode="global")
+            print(data.df["global ANOSIM adj p-Value"])
             distribution = data._anosim_distribution
-            print(plot_id, "done")
+            indices = data.df[data.df["min replicates per group"] == samples]["id"].to_numpy()
+            del data
+            distribution = distribution[:, indices].flatten()
             with open(outfile, "wb") as handle:
                 np.save(handle, distribution)
-            data._anosim_distribution = None
+
+            del distribution
             print("saved")
+
+rule anosimEGF:
+    input:
+        json = rules.AnalyzeNatureWithRAPDOR.output.json
+    output:
+        np = "Pipeline/analyzed/ANOSIMDistribution{experiment}.np",
+        json = "Pipeline/analyzed/ANOSIMDistribution{experiment}.json",
+    threads: 10
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        import multiprocessing
+
+        multiprocessing.set_start_method(method="spawn", force=True)
+        data, samples, outfile = (input.json, 4, output.np)
+        data = RAPDORData.from_file(data)
+        data: RAPDORData
+        print("starting")
+        data.calc_anosim_p_value(3,threads=threads, mode="global")
+        print(data.df["global ANOSIM adj p-Value"])
+        distribution = data._anosim_distribution
+        indices = data.df[data.df["min replicates per group"] == samples]["id"].to_numpy()
+        distribution = distribution[:, indices].flatten()
+        with open(outfile,"wb") as handle:
+            np.save(handle,distribution)
+        data._anosim_distribution = None
+        del distribution
+        data.to_json(output.json)
+        print("saved")
 
 
 
 rule plotANOSIMRDistribution:
     input:
-        np=rules.calcANOSIMDistribution.output.gradr_json,
-        np_liver=rules.calcANOSIMDistribution.output.liver_json,
-        json=rules.run_RAPDOR.output.json,
-        json_liver=expand(rules.AnalyzeNatureWithRAPDOR.output.json,experiment="egf_liver")
+        np=rules.calcANOSIMDistribution.output,
+        npegf = expand(rules.anosimEGF.output.np, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
     output:
-        svg = "Pipeline/Paper/ANOSIMDistribution.svg",
+        svg = "Pipeline/Paper/Supplementary/FigureS4.svg",
     threads: 1
     run:
         from RAPDOR.datastructures import RAPDORData
         import plotly.graph_objs as go
         from plotly.subplots import make_subplots
-        from scipy.stats import spearmanr
-        gradr_data = input.json
-        liver_data = input.json_liver[0]
-        fig = make_subplots(rows=2)
-        for plot_id, data in enumerate([(gradr_data, 3, input.np), (liver_data, 4, input.np_liver)]):
-            data, samples, array = data
-            data = RAPDORData.from_file(data)
-            print("data loaded")
-            data: RAPDORData
-            with open(array, "rb") as handle:
+        ip_files = list(input.np) + list(input.npegf)
+        fig = make_subplots(
+            rows=len(ip_files),
+            shared_xaxes=True,
+            x_title="ANOSIM R",
+            y_title="Probability",
+            row_titles=["GradR", "Cold shock", "2 min", "8 min", "20 min", "90 min"],
+            vertical_spacing=0.02
+        )
+        syn_ys = [anno["y"] for anno in fig.layout.annotations[0:2]]
+        syn_y = np.mean(syn_ys)
+        fig.update_layout(font=config["fonts"]["default"])
+        egf_ys = [anno["y"] for anno in fig.layout.annotations[2:6]]
+        egf_y = np.mean(egf_ys)
+        fig.add_annotation(
+            text="Synechocystis",
+            xref="x2 domain",
+            yref="paper",
+            yanchor="middle",
+            xanchor="left",
+            textangle=90,
+            x=1.15,
+            font=dict(size=16,
+            ),
+            y=syn_y
+        )
+        x_0 = 1.1
+        fig.add_shape(type="line",
+            x0=x_0,y0=syn_ys[0] + 0.025,x1=x_0,y1=syn_ys[-1] - 0.025,xref="x2 domain",yref="paper",line_color="black"
+        )
+        fig.add_annotation(
+            text="HeLa EGF",
+            xref="x2 domain",
+            yref="paper",
+            yanchor="middle",
+            xanchor="left",
+            textangle=90,
+            x=1.15,
+            font=dict(size=16),
+            y=egf_y
+        )
+        fig.add_shape(type="line",
+            x0=x_0,y0=egf_ys[0],x1=x_0,y1=egf_ys[-1],xref="x2 domain",yref="paper",line_color="black"
+        )
+        for plot_id, data in enumerate(ip_files):
+
+            with open(data, "rb") as handle:
                 distribution = np.load(handle)
             print("distribution")
-            indices = data.df[data.df["min replicates per group"] == samples]["id"].to_numpy()
-            print(data.df["min replicates per group"].min())
-            distribution = distribution[:, indices].flatten()
-            distribution = data.df["ANOSIM R"]
+
             y, x = np.histogram(
                 distribution,
                 bins=np.linspace(-1, 1, int(np.floor(2/0.05)))
@@ -1170,20 +1229,167 @@ rule plotANOSIMRDistribution:
             fig.add_trace(go.Bar(
                 x=x,
                 y=y,
+                showlegend=False,
                 marker=dict(
                     line=dict(color="black", width=1),
                     color=DEFAULT_COLORS[0],
-
                 ),
             ), row=plot_id+1, col=1)
-        fig.update_xaxes(title="ANOSIM R")
-        fig.update_yaxes(title="probability")
+
         fig.update_layout(template=DEFAULT_TEMPLATE)
         fig.update_layout(width=config["width"])
-        fig.update_layout(height=config["height"] / 2)
-        fig.update_layout(font=config["fonts"]["default"])
+        fig.update_layout(height=config["height"]*1.5)
+        fig.update_layout(margin=dict(b=50, l=70, r=70))
+
         fig.write_image(output.svg)
 
+rule plotEGFHeLa:
+    input:
+        jsons = expand(rules.anosimEGF.output.json,experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
+    output:
+        svg = "Pipeline/Paper/Subfigures/HeLaPlot.svg",
+        dist_svg = "Pipeline/Paper/Subfigures/HeLaPlotDistribution.svg",
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        from RAPDOR.plots import plot_protein_distributions
+        import plotly.graph_objs as go
+        from plotly.subplots import make_subplots
+        novel = ["PRELID1", "CHUK", "RNF220", "ELL2", "GRB2", "SHC1", "CBL"]
+        identified = {
+            0: ["TXNL4B", "DNAJB2", "BDP1", "EDEM1", "PDE8A", "PRELID1", "CHUK", "STBD1", "GRB2", "ZNF131", "UNC80", "SLC25A33", "SHC1", "CIAO1", "CBL", "JMJD4",],
+            1: ["RNF220", "CHUK", "SFT2D2", "PRELID1", "MYH10", "TBC1D10B", "NBEAL1", "FANCG", "KCTD18", "CES3", "GTF2IRD1", "GRB2", "ELL2", "CEMIP2", "CBL", "CST3", "SHC1"],
+            2: ["MYH10", "CHUK", "BDP1", "PWWP3A", "WRAP73", "NBEAL1", "MAEA", "PYROXD2", "TEDC1", "CSNK1G2", "SIRT7", "RNF220", "CES3", "FIG4", "GORASP2", "ACP6", "FAM208B", "UNC80", "NDUFA11"],
+            3: ["EGR1", "P3H4", "GATAD2B", "NSMCE3", "IRF2BP2", "MBNL1", "RBM7", "CD276"]
+        }
+        rows = 2
+        cols = 2
+        titles = [f"{x} min" for x in (2, 8, 20, 90)]
+        fig = make_subplots(rows =rows, cols = cols, y_title="Jensen-Shannon Distance", x_title="ANOSIM R", subplot_titles=titles, vertical_spacing=0.15)
+        dreg = []
+
+        dist_fig = make_subplots(rows=4, cols=1, shared_xaxes=True, row_titles=titles, y_title="relative protein intensities")
+        for idx, data in enumerate(input.jsons):
+            row = idx // cols
+            col = idx % cols
+            data = RAPDORData.from_file(data)
+            found = identified[idx] if idx in identified else novel
+            f  = data.df["Gene.names"].isin(found)
+            check = list(data.df[f]["Gene.names"])
+
+            df = data.df
+            print(df["global ANOSIM adj p-Value"])
+            df["-log10(p-value)"] = -1 * np.log10(df["global ANOSIM adj p-Value"])
+            difreg = df[(df["global ANOSIM adj p-Value"] <= 0.05) & (df["Mean Distance"] >= 0.2)]
+            difreg = set(difreg["Gene.names"])
+            dreg.append(difreg)
+
+            if len(check) != len(found):
+
+                for p in found:
+                    if p not in check:
+                        print(p)
+                raise ValueError
+            fig.add_trace(
+                go.Scatter(
+                    x=data.df[~f]["-log10(p-value)"],
+                    y=data.df[~f]["Mean Distance"],
+                    mode="markers",
+                    text=data.df[~f]["Gene.names"], marker=dict(color=DEFAULT_COLORS[0]),
+                    showlegend=False
+                ), row = row+1, col=col+1
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=data.df[f]["-log10(p-value)"],
+                    y=data.df[f]["Mean Distance"],
+                    mode="markers",
+                    showlegend=False,
+                    text=data.df[f]["Gene.names"],marker=dict(color=DEFAULT_COLORS[1])
+                ),row=row + 1,col=col + 1
+            )
+            sdf = df[df["Gene.names"] == "FOXJ3"]
+            ids = sdf["RAPDORid"]
+            for (_, row) in sdf.iterrows():
+                x = row["-log10(p-value)"]
+                y = row["Mean Distance"]
+                anno = dict(
+                    text=row["Gene.names"],
+                    x=x,
+                    y=y,
+                    xanchor="center",
+                    yanchor="middle",
+                    showarrow=True,
+                    xref="x" if idx == 0 else f"x{idx + 1}",
+                    yref="y" if idx == 0 else f"y{idx + 1}",
+                    ax=x - 0.2,
+                    ay=y-0.1,
+                    axref="x" if idx == 0 else f"x{idx + 1}",
+                    ayref="y" if idx == 0 else f"y{idx + 1}",
+
+                )
+                fig.add_annotation(
+                    anno
+                )
+            subfig = plot_protein_distributions(ids, data, mode="bar", colors=DEFAULT_COLORS)
+            subfig.update_traces(legend="legend1")
+            subfig.data[1].update(showlegend=False)
+            subfig.data[3].update(showlegend=False)
+            subfig.data[0].update(name="Control")
+            subfig.data[2].update(name="EGF")
+            if idx != 0:
+                subfig.update_traces(showlegend=False)
+            dist_fig.add_traces(
+                subfig.data,
+                rows=idx+1,
+                cols=1
+
+            )
+        dist_fig.update_layout(template=DEFAULT_TEMPLATE)
+        dist_fig.update_layout(width=config["width"])
+        dist_fig.update_layout(height=config["height"])
+        dist_fig.update_layout(margin=dict(b=50, l=70, r=70, t=30))
+
+        fig.update_layout(template=DEFAULT_TEMPLATE)
+        fig.update_layout(width=config["width"])
+        fig.update_layout(height=config["height"])
+        fig.update_layout(margin=dict(b=50,l=70,r=70, t=30))
+        fig.update_annotations(
+            dict(font=config["fonts"]["axis"])
+        )
+        dist_fig.update_annotations(
+            dict(font=config["fonts"]["axis"])
+        )
+        fig.write_image(output.svg)
+        dist_fig.write_image(output.dist_svg)
+
+
+
+rule joinHeLaPlot:
+    input:
+        svg1 = rules.plotEGFHeLa.output.svg,
+        svg2 = rules.plotEGFHeLa.output.dist_svg,
+    output:
+        svg = "Pipeline/Paper/Figure7.svg",
+    run:
+        from svgutils.compose import Figure, Panel, SVG, Text
+
+        b_y = config["height"]
+        ges_y = b_y + config["height"]
+        f = Figure("624px",f"{ges_y}px",
+            Panel(
+                SVG(input.svg1),
+                Text("A",2,15,size=config["multipanel_font_size"],weight='bold',font="Arial")
+
+            ),
+            Panel(
+                SVG(input.svg2),
+                Text("B",2,2,size=config["multipanel_font_size"],weight='bold',font="Arial")
+            ).move(0,b_y),
+        )
+        svg_string = f.tostr()
+        svg_string = svg_string.decode().replace("encoding='ASCII'","encoding='utf-8'")
+        with open(output.svg,"w") as handle:
+            handle.write(svg_string)
 
 rule theoreticalDistinctRValues:
     input:
@@ -1216,7 +1422,7 @@ rule theoreticalDistinctRValues:
 
 rule produceArtificialSoftArgMaxExample:
     output:
-        svg = "Pipeline/Paper/artificialSoftArgMaxExample.svg"
+        svg = "Pipeline/Paper/unused/artificialSoftArgMaxExample.svg"
     run:
         import numpy as np
         from scipy.special import rel_entr
@@ -1301,6 +1507,7 @@ rule GOTermEnrichmentMouseNature:
     input:
         file = rules.AnalyzeNatureWithRAPDOR.output.tsv
     conda: "../envs/ClusterProfiler.yml"
+    threads: 10
     output:
         enriched = directory("Pipeline/NatureMouse/GO/{experiment}GOEnrichment/",)
     script: "../Rscripts/AnalyzeGoTermsMouse.R"
@@ -1310,6 +1517,7 @@ rule KEGGEnrichmentMouseNature:
     input:
         file = rules.AnalyzeNatureWithRAPDOR.output.tsv
     conda: "../envs/ClusterProfiler.yml"
+    threads: 10
     output:
         enriched = directory("Pipeline/NatureMouse/KEGG/{experiment}GOEnrichment/",)
     script: "../Rscripts/AnalyzeKEGG.R"

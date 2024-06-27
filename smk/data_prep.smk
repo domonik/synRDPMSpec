@@ -285,10 +285,30 @@ def split_liver(df):
     df = df.rename({"CTRL_FR1_REP3_01_20201002195754": "CTRL_FR1_REP4_01"}, axis=1)
     return *split_kidney(df),
 
+def split_min(min):
+    def split_8min(df):
+        names, treatments, replicates, fractions = ([] for _ in range(4))
+        df = df.loc[:, df.columns.str.contains(f"{min}|Gene.name|CTRL")]
+        for col in df.columns[1:]:
+            ncol = col.split("_")
+            names.append(col)
+            replicates.append(ncol[-1])
+            fractions.append(ncol[-2])
+            treatments.append("EGF" if ncol[1] == f"{min}" else "CTRL")
+            df[col][df[col] == 0] = np.nan
+        return names, treatments, replicates, fractions, df
+    return split_8min
+
+
+
 SPLITFCTS = {
     "muscle": split_muscle,
     "egf_kidney": split_kidney,
     "egf_liver": split_liver,
+    "egf_8min": split_min("8min"),
+    "egf_2min": split_min("2min"),
+    "egf_20min": split_min("20min"),
+    "egf_90min": split_min("90min"),
 }
 
 RENAMEFRCT = {
@@ -323,7 +343,13 @@ rule AnalyzeNatureWithRAPDOR:
             {"Name": names, "Treatment": treatments, "Fraction": fractions, "Replicate": replicates}
         )
         design.to_csv(output.design, sep="\t", index=False)
-        df = df.merge(addinfo, on="PG.Genes", how="left")
+        if "min" in wildcards.experiment and "egf" in wildcards.experiment:
+            addinfo["PG.Genes"] = addinfo["PG.Genes"].str.split(";").str[0]
+            df = df.merge(addinfo, left_on="Gene.names", how="left", right_on="PG.Genes")
+
+        else:
+            df = df.merge(addinfo, on="PG.Genes", how="left")
+
         print(design)
         print(df)
 

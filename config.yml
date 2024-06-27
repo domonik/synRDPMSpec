@@ -94,6 +94,18 @@ Mouse:
     col_sheet: "S9A-Output Spectronaut Liver"
 
   egf_8min:
-    link: "https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-021-27398-y/MediaObjects/41467_2021_27398_MOESM12_ESM.xlsx"
-    data_sheet: "S9B-log2 processed Liver"
-    col_sheet: "S9A-Output Spectronaut Liver"
+    link: "https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-021-27398-y/MediaObjects/41467_2021_27398_MOESM8_ESM.xlsx"
+    data_sheet: "S5B-Log2 proc HeLa+EGF PROT"
+    col_sheet: "S5A-Output SN Hela+EGF PROT"
+  egf_2min:
+    link: "https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-021-27398-y/MediaObjects/41467_2021_27398_MOESM8_ESM.xlsx"
+    data_sheet: "S5B-Log2 proc HeLa+EGF PROT"
+    col_sheet: "S5A-Output SN Hela+EGF PROT"
+  egf_20min:
+    link: "https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-021-27398-y/MediaObjects/41467_2021_27398_MOESM8_ESM.xlsx"
+    data_sheet: "S5B-Log2 proc HeLa+EGF PROT"
+    col_sheet: "S5A-Output SN Hela+EGF PROT"
+  egf_90min:
+    link: "https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-021-27398-y/MediaObjects/41467_2021_27398_MOESM8_ESM.xlsx"
+    data_sheet: "S5B-Log2 proc HeLa+EGF PROT"
+    col_sheet: "S5A-Output SN Hela+EGF PROT"

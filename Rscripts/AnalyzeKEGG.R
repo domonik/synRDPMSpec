@@ -9,16 +9,22 @@ ranked_table <- read.table(ranked_file, sep="\t", header=TRUE)
 ranked_table <- na.omit(ranked_table)
 print(head(ranked_table))
 my_list <- list()
+experiment_str <- snakemake@wildcards[["experiment"]]
+if (snakemake@wildcards[["experiment"]] %in% c("egf_8min", "egf_2min")) {
+  organism <- "hsa"
+} else {
+  organism <- "mmu"
+}
+
 for (nr in 1:6) {
   up <- ranked_table$"ANOSIM.R" >= 0.5 & grepl(paste0("FR", nr), ranked_table$"position.strongest.shift")
   up <- ranked_table[up,]
   entrezid_entries <- head(select(org.Mm.eg.db, keys = keys(org.Mm.eg.db), columns = "UNIPROT"))
   overlap_entrezid <- any(as.character(ranked_table$"PG.ProteinGroups") %in% keys(org.Mm.eg.db, keytype = "UNIPROT"))
 
-
   ekeggup <- enrichKEGG(gene = as.character(up$"PG.ProteinGroups"),
                         universe = as.character(ranked_table$"PG.ProteinGroups"),
-                        organism = "mmu",
+                        organism = organism,
                         keyType="uniprot",
                         pAdjustMethod = "BH",
                         pvalueCutoff = 0.05,
@@ -38,7 +44,7 @@ up <- ranked_table[up,]
 
 ekeggup <- enrichKEGG(gene = as.character(up$"PG.ProteinGroups"),
                       universe = as.character(ranked_table$"PG.ProteinGroups"),
-                      organism = "mmu",
+                      organism = organism,
                       keyType = "uniprot",
                       pAdjustMethod = "BH",
                       pvalueCutoff = 0.05,
