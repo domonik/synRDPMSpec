@@ -16,7 +16,7 @@ rule all:
         bubble_plot = expand(rules.createBubblePlot.output, highlight=["overlapping"]),
         #rna_binding = rules.extractGORNABinding.output,
         #enrich = rules.GOEnrichment.output,
-        #benchmark = rules.plotRuntime.output,
+        benchmark = rules.plotRuntime.output,
         salmonella = rules.runIdentifierOnSalmonella.output,
         syn_cond = expand(rules.runOnSynData.output, condition=["COLD", "HEAT", "DARK", "N", "Fe"]),
         overlapping_data = rules.extract_tophits.output,
@@ -29,6 +29,7 @@ rule all:
         fig = rules.plotSpearmans.output,
         ts1 = rules.detectedProteinTable.output,
         tophits = expand(rules.plotTopHitDistributions.output, distribution=config["distributions"].keys()),
+        copySFigures = rules.copySubfigures.output,
         #fit = rules.fitMultiGaussian.output
         final_data = rules.postProcessRapdorData.output,
         histo = rules.plotANOSIMRDistribution.output,

@@ -182,6 +182,7 @@ rule prepareinitialData:
                 return s[0].upper() + s[1:3] + s[3:].upper()
         rapdor_table["Protein name"] = rapdor_table["Gene"].apply(capitalize_string)
         rapdor_table["small_ribosomal"] = rapdor_table["Gene"].str.contains(r'\b(rps|Rps)(?![1-9][A-Za-z])',case=False)
+        rapdor_table.loc[rapdor_table["Gene"].str.contains(r'rps1A|rps1b') == True, "small_ribosomal"] = False
         rapdor_table["large_ribosomal"] = rapdor_table["Gene"].str.contains(r'\b(rpl|Rpl)', case=False)
         rapdor_table["photosystem"] = rapdor_table["Gene"].str.contains(r'\b(psb|psa)', case=False)
         poly_tags = r"|".join([
@@ -191,7 +192,7 @@ rule prepareinitialData:
         rapdor_table["ribosomal protein"] = (rapdor_table["large_ribosomal"] | rapdor_table["small_ribosomal"])
         rapdor_table = rapdor_table.merge(go_table, on="old_locus_tag", how="left")
         rapdor_table["ribosomal protein"] = ((rapdor_table["Gene"].str.contains('rpl|rps|Rpl|Rps', case=False)) | (rapdor_table['ProteinFunction'].str.contains('ribosomal protein', case=False)))
-
+        rapdor_table.loc[rapdor_table["Gene"].str.contains(r'rps1A|rps1b') == True, "ribosomal protein"] = False
         # rapdor_table = rapdor_table.drop([f"rnase{idx}-20" for idx in range(1, 4)], axis=1)
         # rapdor_table = rapdor_table.drop([f"ctrl{idx}-20" for idx in range(1, 4)], axis=1)
         # design = design[~design["Name"].isin([f"ctrl{idx}-20" for idx in range(1, 4)])]

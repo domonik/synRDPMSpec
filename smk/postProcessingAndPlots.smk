@@ -280,11 +280,11 @@ rule rplaDistribution:
         rpla = data.df[data.df["Gene"] == "rplA"]["RAPDORid"]
         subdata = data.norm_array[data[rpla][0]]
         subdata2 = data.array[data[rpla][0]]
-        row_heights = [0.5, 0.15, 0.15, 0.1, 0.1]
-        fig = make_subplots(rows=5, cols=1, shared_xaxes=True, vertical_spacing=0.01, row_heights=row_heights)
+        row_heights = [0.8, 0.1, 0.1]
+        fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.01, row_heights=row_heights)
         idesign = data.internal_design_matrix[data.internal_design_matrix["Replicate"] == "BR1"]
         fig1 = plot_distribution(subdata, data.internal_design_matrix, offset=data.state.kernel_size // 2, colors=COLOR_SCHEMES["Dolphin"], show_outliers=False)
-        fig2 = plot_barcode_plot(subdata2, idesign, colors=COLOR_SCHEMES["Dolphin"], fractions=data.fractions, scale_max=False)
+        #fig2 = plot_barcode_plot(subdata2, idesign, colors=COLOR_SCHEMES["Dolphin"], fractions=data.fractions, scale_max=False)
         fig.update_yaxes(fig1.layout.yaxis, row=1)
         for trace in fig1["data"]:
             t = "Control" if trace.legend == "legend" else "RNase"
@@ -297,31 +297,31 @@ rule rplaDistribution:
                 legendgrouptitle=dict(text=t)
             )
             fig.add_trace(trace, row=1, col=1)
-        for i_idx, trace in enumerate(fig2["data"]):
-            v = row_heights[1] + row_heights[2]
+        # for i_idx, trace in enumerate(fig2["data"]):
+        #     v = row_heights[1] + row_heights[2]
+        #
+        #     trace.colorbar.update(
+        #         len=v,
+        #         yref="paper",
+        #         y=row_heights[0] - v * (i_idx // 2),
+        #         yanchor="top",
+        #         nticks=5,
+        #         x=1. + 0.05 if i_idx % 2 else 1.,
+        #         showticklabels=True,
+        #         thickness=0.05,
+        #         thicknessmode="fraction",
+        #         ticklabelposition="inside",
+        #         title=dict(text="iBAQ BR1" if i_idx == 0 else "-", font=dict(size=12, color="rgba(0,0,0,0)" if i_idx else None)),
+        #         tickfont=config["fonts"]["legend"],
+        #         outlinewidth=1,
+        #         outlinecolor="black"
+        #
+        #     )
+        #     fig.add_trace(trace,row=2 + i_idx, col=1)
 
-            trace.colorbar.update(
-                len=v,
-                yref="paper",
-                y=row_heights[0] - v * (i_idx // 2),
-                yanchor="top",
-                nticks=5,
-                x=1. + 0.05 if i_idx % 2 else 1.,
-                showticklabels=True,
-                thickness=0.05,
-                thicknessmode="fraction",
-                ticklabelposition="inside",
-                title=dict(text="iBAQ BR1" if i_idx == 0 else "-", font=dict(size=12, color="rgba(0,0,0,0)" if i_idx else None)),
-                tickfont=config["fonts"]["legend"],
-                outlinewidth=1,
-                outlinecolor="black"
-
-            )
-            fig.add_trace(trace,row=2 + i_idx, col=1)
-
-        for row in [4, 5]:
+        for row in [2, 3]:
             fig.update_yaxes(range=[0, 1], row=row)
-            cat = ["Control" if row == 4 else "RNase"]
+            cat = ["Control" if row == 2 else "RNase"]
             fig.update_yaxes(row=row,showgrid=False, autorange="reversed", categoryorder='total ascending', categoryarray=cat)
 
             fig.add_trace(
@@ -334,7 +334,7 @@ rule rplaDistribution:
                 ),
                 row=row, col=1
             )
-        for row in range(2, 6):
+        for row in range(2, 4):
             fig.update_yaxes(row=row,showgrid=False)
             fig.update_xaxes(row=row,showgrid=False)
 
@@ -345,8 +345,8 @@ rule rplaDistribution:
             source=ctrl_western,
             x=0,
             y=0.5,
-            xref="x4 domain",
-            yref="y4 domain",
+            xref="x2 domain",
+            yref="y2 domain",
             xanchor="left",
             yanchor="middle",
 
@@ -356,8 +356,8 @@ rule rplaDistribution:
             source=rnase_western,
             x=0,
             y=0.5,
-            xref="x5 domain",
-            yref="y5 domain",
+            xref="x3 domain",
+            yref="y3 domain",
             xanchor="left",
             yanchor="middle",
         )
@@ -373,7 +373,7 @@ rule rplaDistribution:
         fig.update_yaxes(row=4, showgrid=False)
 
         fig.update_yaxes( row=5, showgrid=False)
-        fig.update_xaxes(title = "Fraction", row=5, range=[0.5, 20.5])
+        fig.update_xaxes(title = "Fraction", row=3, range=[0.5, 20.5])
         fig.update_layout(legend=dict(tracegroupgap=0, orientation="v", x=1.005, y=1, xanchor="left", yanchor="top"))
         fig.add_annotation(
             text="Anti-RplA",
@@ -414,6 +414,7 @@ rule plotTopHitDistributions:
             legend=dict(font=config["fonts"]["legend"], y=1.015),
             legend2=dict(font=config["fonts"]["legend"], y=dist_config["legend2_y"]),
         )
+        fig.update_layout(margin=dict(l=70, r=30, b=50))
         fig.update_annotations(font=config["fonts"]["annotations"])
         fig.update_traces(line=dict(width=2),
                 marker=dict(size=3),)
@@ -494,6 +495,9 @@ rule plotBarcodePlot:
 
         d = {"small subunit": small_subunit, "large subunit": large_subunit, "photosystem": photosystem}
         fig = rank_plot(d, data, colors, orientation="h", triangles="inside", tri_x=17, tri_y=0.2)
+        fig.update_shapes(showlegend=False)
+        fig.layout.annotations = None
+
 
         fig.update_layout(
             width=config["width"], height=config["F3"]["C"]["height"],
@@ -505,7 +509,6 @@ rule plotBarcodePlot:
 
 
 
-        #fig.show()
         fig.write_image(output.svg)
         fig.write_html(output.html)
 
@@ -556,19 +559,7 @@ rule plotAllVenns:
                     annotation["xref"] = f"x{idx} domain" if idx > 1 else "x domain"
                     annotation["yref"] = f"y{idx} domain" if idx > 1 else "y domain"
                 multi_fig.add_annotation(annotation)
-            multi_fig.add_annotation(
-                text=f"<b>{annos[idx-1]}</b>",
-                xref= f"x{idx} domain" if idx > 1 else "x domain",
-                xanchor="left",
-                x=0,
-                yref=f"y{idx} domain" if idx > 1 else "y domain",
-                yanchor="top",
-                y=1,
-                font=dict(size=config["multipanel_font_size"]),
-                showarrow = False
 
-
-            )
             multi_fig.add_annotation(
                 text=f"{mapping[file]}",
                 xref=f"x{idx} domain" if idx > 1 else "x domain",
@@ -786,41 +777,41 @@ rule createBubblePlot:
             elif annotation.text == "RpoB":
                 annotation.update(showarrow=True,ay=annotation.y,ax=0, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "RbpA":
-                annotation.update(showarrow=True,ay=-.35,ax=-7.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ay=1,ax=-7.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Slr0147":
-                annotation.update(showarrow=True,ay=-.4,ax=-5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ay=1.25,ax=-6, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Slr1143":
-                annotation.update(showarrow=True,ay=-.45,ax=1, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ay=1.5,ax=-4, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Hpf":
-                annotation.update(showarrow=True,ay=.3,ax=-16, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ay=-1.25,ax=-19, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll1388":
-                annotation.update(showarrow=True,ax=-14,ay=.4, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=-11,ay=.9, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "ChlI":
                 annotation.update(showarrow=True,ax=-9 ,ay=.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll0921":
-                annotation.update(showarrow=True,ax=annotation.x,ay=.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=-18,ay=-1.6, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Pgm":
-                annotation.update(showarrow=True,ax=-3.5, ay=.57, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=0, ay=1.1, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll1967":
-                annotation.update(showarrow=True,ax=0,ay=.55, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=-5,ay=-2, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Slr0782":
-                annotation.update(showarrow=True,ax=0.5,ay=.4, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=0.5,ay=-.7, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "QueF":
-                annotation.update(showarrow=True,ax=1.3,ay=.32, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=-8.5,ay=-1, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "SecE":
-                annotation.update(showarrow=True,ax=-16,ay=-.05,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=-15,ay=1,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Ffh":
-                annotation.update(showarrow=True,ax=14,ay=-.35,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=14,ay=1.5,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll0284":
-                annotation.update(showarrow=True,ax=10,ay=.5,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=5,ay=-1.25,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "AroB":
-                annotation.update(showarrow=True,ax=5,ay=-.375,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=2,ay=.75,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Slr0678":
-                annotation.update(showarrow=True,ax=5.5,ay=.43,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=0,ay=-1.43,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll7087":
-                annotation.update(showarrow=True,ax=-7,ay=.56,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-
-
+                annotation.update(showarrow=True,ax=-10,ay=-1.75,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "RpoC1":
+                annotation.update(showarrow=True,ax=-7,ay=-1.25,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
         fig.write_image(output.svg)
         fig.write_html(output.html)
         fig.write_json(output.json)
@@ -856,7 +847,7 @@ rule plotConditionedSynechochoColdRibo:
         names = [f"rpl{id}" for id in [1, 13, 18, 22, 23, 28, 29, 33,]]
         names += [f"rps{id}" for id in [10, 20, 7, 8]]
         identified_inpub = data.df[data.df["Gene"].isin(names)]["RAPDORid"]
-        d = {"ribosomal & membrane": r_to_membrane, "Wang et al. (2023)": identified_inpub}
+        d = {"ribosomal & membrane": r_to_membrane}
         fig = multi_means_and_histo(d,data,colors=COLOR_SCHEMES["Dolphin"] + COLOR_SCHEMES["Viking"])
         fig.update_traces(
             marker_color="lightgrey",
@@ -870,6 +861,8 @@ rule plotConditionedSynechochoColdRibo:
         )
         fig.write_image(output.svg)
         fig = rank_plot(d, rapdordata=data, colors = COLOR_SCHEMES["Dolphin"] + COLOR_SCHEMES["Viking"])
+        fig.layout.shapes = None
+        fig.layout.annotations = None
         fig.update_layout(width=config["width"])
         fig.update_layout(height=config["height"] / 2)
 
@@ -1117,9 +1110,8 @@ rule calcANOSIMDistribution:
             data = RAPDORData.from_file(data)
             data: RAPDORData
             print("starting")
-            data.calc_anosim_p_value(-1,threads=threads, mode="global")
+            _, distribution = data.calc_anosim_p_value(-1,threads=threads, mode="global")
             print(data.df["global ANOSIM adj p-Value"])
-            distribution = data._anosim_distribution
             indices = data.df[data.df["min replicates per group"] == samples]["id"].to_numpy()
             del data
             distribution = distribution[:, indices].flatten()
@@ -1145,9 +1137,8 @@ rule anosimEGF:
         data = RAPDORData.from_file(data)
         data: RAPDORData
         print("starting")
-        data.calc_anosim_p_value(3,threads=threads, mode="global")
+        _, distribution = data.calc_anosim_p_value(-1,threads=threads, mode="global")
         print(data.df["global ANOSIM adj p-Value"])
-        distribution = data._anosim_distribution
         indices = data.df[data.df["min replicates per group"] == samples]["id"].to_numpy()
         distribution = distribution[:, indices].flatten()
         with open(outfile,"wb") as handle:
@@ -1291,8 +1282,8 @@ rule plotEGFHeLa:
                 raise ValueError
             fig.add_trace(
                 go.Scatter(
-                    x=data.df[~f]["-log10(p-value)"],
-                    y=data.df[~f]["Mean Distance"],
+                    y=data.df[~f]["-log10(p-value)"],
+                    x=data.df[~f]["Mean Distance"],
                     mode="markers",
                     text=data.df[~f]["Gene.names"], marker=dict(color=DEFAULT_COLORS[0]),
                     showlegend=False
@@ -1300,18 +1291,27 @@ rule plotEGFHeLa:
             )
             fig.add_trace(
                 go.Scatter(
-                    x=data.df[f]["-log10(p-value)"],
-                    y=data.df[f]["Mean Distance"],
+                    y=data.df[f]["-log10(p-value)"],
+                    x=data.df[f]["Mean Distance"],
                     mode="markers",
+                    name="sig. shift in Martinez-Val et. al",
                     showlegend=False,
                     text=data.df[f]["Gene.names"],marker=dict(color=DEFAULT_COLORS[1])
                 ),row=row + 1,col=col + 1
             )
+            fig.add_hline(
+                y=-1 * np.log10(0.1),
+                row=row+1, col=col+1, line=dict(dash='dot')
+            )
+            fig.add_vline(
+                x=0.2,
+                row=row + 1,col=col + 1,line=dict(dash='dot')
+            )
             sdf = df[df["Gene.names"] == "FOXJ3"]
             ids = sdf["RAPDORid"]
             for (_, row) in sdf.iterrows():
-                x = row["-log10(p-value)"]
-                y = row["Mean Distance"]
+                y = row["-log10(p-value)"]
+                x = row["Mean Distance"]
                 anno = dict(
                     text=row["Gene.names"],
                     x=x,
@@ -1344,6 +1344,18 @@ rule plotEGFHeLa:
                 cols=1
 
             )
+        fig.data[1].update(showlegend=True)
+        fig.update_layout(
+            legend=dict(
+                orientation="h",
+                # x=0.1,
+                # y=0.1,
+                # xref="container",
+                # yref="container",
+                # xanchor="left",
+                # yanchor="bottom"
+            )
+        )
         dist_fig.update_layout(template=DEFAULT_TEMPLATE)
         dist_fig.update_layout(width=config["width"])
         dist_fig.update_layout(height=config["height"])
@@ -1359,6 +1371,7 @@ rule plotEGFHeLa:
         dist_fig.update_annotations(
             dict(font=config["fonts"]["axis"])
         )
+        #fig.show()
         fig.write_image(output.svg)
         dist_fig.write_image(output.dist_svg)
 
@@ -1626,3 +1639,18 @@ rule postProcessRapdorData:
         data.df = data.df.drop(drop, axis=1)
         data.to_json(output.file)
 
+rule copySubfigures:
+    input:
+        s3 = expand(rules.plotTopHitDistributions.output, distribution=["S3"]),
+        f6 = expand(rules.plotTopHitDistributions.output, distribution=["D1"]),
+        wf = "Workflow2.svg"
+    output:
+        s3 = "Pipeline/Paper/Supplementary/FigureS3.svg",
+        f6 = "Pipeline/Paper/Figure6.svg",
+        wf = "Pipeline/Paper/Figure8.svg"
+    shell:
+        """
+        cp {input.s3[0]} {output.s3}
+        cp {input.f6[0]} {output.f6}
+        cp {input.wf} {output.wf}
+        """
