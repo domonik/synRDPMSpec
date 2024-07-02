@@ -7,6 +7,7 @@ rule run_on_synthetic_data:
     output:
         tsv = "Pipeline/RAPDORAnalysis/analyzedFake.tsv",
         json="Pipeline/RAPDORAnalysis/analyzedFake.json",
+    threads: 999
     benchmark:
         repeat("Pipeline/benchmarks/rapdorBenchmarkSynthetic.csv", config["benchmark_repeats"])
     run:
@@ -29,6 +30,7 @@ rule ANOSIM_on_synthetic_data:
     output:
         tsv = "Pipeline/RAPDORAnalysis/analyzedFakeANOSIM.tsv",
         json="Pipeline/RAPDORAnalysis/analyzedFakeANOSIM.json",
+    threads: 999
     benchmark:
         repeat("Pipeline/benchmarks/rapdorBenchmarkANOSIMSynthetic.csv",10)
     run:
@@ -52,6 +54,7 @@ rule run_RAPDOR:
     output:
         tsv = "Pipeline/RAPDORAnalysis/GradRData.tsv",
         json = "Pipeline/RAPDORAnalysis/GradRData.json"
+    threads: 999
     benchmark:
         repeat("Pipeline/benchmarks/rapdorBenchmark.csv", config["benchmark_repeats"])
     run:

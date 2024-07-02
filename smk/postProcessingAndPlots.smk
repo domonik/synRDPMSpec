@@ -458,6 +458,12 @@ rule plotMeanDistribution:
             height=config["F3"]["B"]["height"],
             width=config["width"],
             template=DEFAULT_TEMPLATE,
+            margin=dict(
+                b=30,
+                t=20,
+                r=30,
+                l=30
+            ),
         )
         fig.update_annotations(
             dict(font=config["fonts"]["axis"])
@@ -498,9 +504,14 @@ rule plotBarcodePlot:
         fig.update_shapes(showlegend=False)
         fig.layout.annotations = None
 
-
         fig.update_layout(
-            width=config["width"], height=config["F3"]["C"]["height"],
+            width=config["width"],height=config["F3"]["C"]["height"],
+            margin=dict(
+                b=30,
+                t=20,
+                r=30,
+                l=30
+            ),
             legend=dict(bgcolor = 'rgba(0,0,0,0)', )
 
         )
@@ -706,9 +717,14 @@ rule plotRuntime:
             )
 
         fig.update_layout(template=DEFAULT_TEMPLATE, width=config["width"], height=300,
+            margin=config["margin"]
+
         )
         fig.update_yaxes(type="log", title=dict(text="Average Runtime [s]"), col=1)
         fig.update_yaxes(title=dict(text="Memory [Mb]"), col=2)
+        fig.layout.annotations[0].update(
+            dict(font=config["fonts"]["axis"])
+        )
 
         fig.update_xaxes(type='linear')
         fig.write_image(output.svg)
@@ -1213,7 +1229,7 @@ rule plotANOSIMRDistribution:
 
             y, x = np.histogram(
                 distribution,
-                bins=np.linspace(-1, 1, int(np.floor(2/0.05)))
+                bins=np.linspace(-1, 1, int(np.floor(2/0.01)))
             )
             y = y / np.sum(y)
 
@@ -1230,7 +1246,7 @@ rule plotANOSIMRDistribution:
         fig.update_layout(template=DEFAULT_TEMPLATE)
         fig.update_layout(width=config["width"])
         fig.update_layout(height=config["height"]*1.5)
-        fig.update_layout(margin=dict(b=50, l=70, r=70))
+        fig.update_layout(margin=config["margin"])
 
         fig.write_image(output.svg)
 
@@ -1255,7 +1271,7 @@ rule plotEGFHeLa:
         rows = 2
         cols = 2
         titles = [f"{x} min" for x in (2, 8, 20, 90)]
-        fig = make_subplots(rows =rows, cols = cols, y_title="Jensen-Shannon Distance", x_title="ANOSIM R", subplot_titles=titles, vertical_spacing=0.15)
+        fig = make_subplots(rows =rows, cols = cols, y_title="log<sub>10</sub>(p-value)", x_title="Jensen-Shannon Distance", subplot_titles=titles, vertical_spacing=0.15)
         dreg = []
 
         dist_fig = make_subplots(rows=4, cols=1, shared_xaxes=True, row_titles=titles, y_title="relative protein intensities")
@@ -1294,7 +1310,7 @@ rule plotEGFHeLa:
                     y=data.df[f]["-log10(p-value)"],
                     x=data.df[f]["Mean Distance"],
                     mode="markers",
-                    name="sig. shift in Martinez-Val et. al",
+                    name="shift in Martinez-Val et al.",
                     showlegend=False,
                     text=data.df[f]["Gene.names"],marker=dict(color=DEFAULT_COLORS[1])
                 ),row=row + 1,col=col + 1
@@ -1307,11 +1323,13 @@ rule plotEGFHeLa:
                 x=0.2,
                 row=row + 1,col=col + 1,line=dict(dash='dot')
             )
-            sdf = df[df["Gene.names"] == "FOXJ3"]
-            ids = sdf["RAPDORid"]
+            highlight = {"FOXJ3": (0.11, 0.7)} if idx > 1 else {"FOXJ3":(0, 1.25) , "GRB2": (.5, .6), "CBL": (.15, .7), "SHC1":(0.12, 0.9) }
+            sdf = df[df["Gene.names"].isin(highlight)]
+            ids = sdf[sdf["Gene.names"] == "FOXJ3"]["RAPDORid"]
             for (_, row) in sdf.iterrows():
                 y = row["-log10(p-value)"]
                 x = row["Mean Distance"]
+                ax, ay = highlight[row["Gene.names"]]
                 anno = dict(
                     text=row["Gene.names"],
                     x=x,
@@ -1321,8 +1339,8 @@ rule plotEGFHeLa:
                     showarrow=True,
                     xref="x" if idx == 0 else f"x{idx + 1}",
                     yref="y" if idx == 0 else f"y{idx + 1}",
-                    ax=x - 0.2,
-                    ay=y-0.1,
+                    ax=ax,
+                    ay=ay,
                     axref="x" if idx == 0 else f"x{idx + 1}",
                     ayref="y" if idx == 0 else f"y{idx + 1}",
 
@@ -1359,19 +1377,18 @@ rule plotEGFHeLa:
         dist_fig.update_layout(template=DEFAULT_TEMPLATE)
         dist_fig.update_layout(width=config["width"])
         dist_fig.update_layout(height=config["height"])
-        dist_fig.update_layout(margin=dict(b=50, l=70, r=70, t=30))
+        dist_fig.update_layout(margin=config["margin"])
 
         fig.update_layout(template=DEFAULT_TEMPLATE)
         fig.update_layout(width=config["width"])
         fig.update_layout(height=config["height"])
-        fig.update_layout(margin=dict(b=50,l=70,r=70, t=30))
+        fig.update_layout(margin=config["margin"])
         fig.update_annotations(
             dict(font=config["fonts"]["axis"])
         )
         dist_fig.update_annotations(
             dict(font=config["fonts"]["axis"])
         )
-        #fig.show()
         fig.write_image(output.svg)
         dist_fig.write_image(output.dist_svg)
 
@@ -1643,14 +1660,17 @@ rule copySubfigures:
     input:
         s3 = expand(rules.plotTopHitDistributions.output, distribution=["S3"]),
         f6 = expand(rules.plotTopHitDistributions.output, distribution=["D1"]),
-        wf = "Workflow2.svg"
+        wf2 = "Workflow2.svg",
+        wf = "Workflow.svg"
     output:
         s3 = "Pipeline/Paper/Supplementary/FigureS3.svg",
         f6 = "Pipeline/Paper/Figure6.svg",
-        wf = "Pipeline/Paper/Figure8.svg"
+        wf2 = "Pipeline/Paper/Figure8.svg",
+        wf = "Pipeline/Paper/Figure2.svg"
     shell:
         """
         cp {input.s3[0]} {output.s3}
         cp {input.f6[0]} {output.f6}
+        cp {input.wf2} {output.wf2}
         cp {input.wf} {output.wf}
         """

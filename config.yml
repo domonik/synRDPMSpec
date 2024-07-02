@@ -27,10 +27,10 @@ width: 624
 height: 400
 
 margin:
-  b: 30
+  b: 50
   t: 20
   r: 30
-  l: 30
+  l: 70
 
 F3:
   A:

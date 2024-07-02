@@ -5,8 +5,8 @@ ORGANISMID = f"{config['genus']}.{config['species']}_taxid{config['tax_id']}"
 
 rule multiplyData:
     input:
-        intensities = config["design"],
-        design = config["intensities"]
+        intensities = config["intensities"],
+        design = config["design"]
     output:
         multipleIntensities = "Pipeline/BenchmarkData/synIntensitiesFake.tsv",
         multipleDesign = "Pipeline/BenchmarkData/synDesignFake.tsv",
@@ -14,7 +14,7 @@ rule multiplyData:
         import pandas as pd
         intensities = pd.read_csv(input.intensities, sep="\t")
         design = pd.read_csv(input.design, sep="\t")
-        print(intensities.columns)
+
         names = []
         rnases = []
         fractions = []
@@ -23,16 +23,16 @@ rule multiplyData:
         for x in intensities.columns:
             if x.startswith("ctrl") or x.startswith("rnase"):
                 d = x.split("-")
-                d = x.split("LFQ intensity RNAse_")[1].split("_")
                 print(d)
-                if len(d[0]) == 6:
-                    RNase = True
-                else:
-                    RNase = False
-                d = d[0][:-1]
                 frac = int(d[1])
+                d = d[0]
+
+                if d.startswith("ctrl"):
+                    RNase = False
+                else:
+                    RNase = True
                 for nr in range(3):
-                    br = d[0][-1] + f".{nr}"
+                    br = d[-1] + f".{nr}"
                     fakedata = intensities[x].sample(frac=1).values
                     name = x + f".{nr}"
 
