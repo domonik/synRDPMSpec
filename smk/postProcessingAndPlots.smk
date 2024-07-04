@@ -1430,10 +1430,11 @@ rule theoreticalDistinctRValues:
         from RAPDOR.datastructures import RAPDORData
         import numpy as np
         import pandas as pd
+        import math
         data = RAPDORData.from_file(input.json)
 
         def distinct_perms(n):
-            return np.math.factorial(2 * n) / (2 * np.square(np.math.factorial(n)))
+            return math.factorial(2 * n) / (2 * np.square(math.factorial(n)))
 
         nr_protein = len(data.df[~data.df["contains empty replicate"].to_numpy()])
         df = {

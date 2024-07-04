@@ -53,6 +53,7 @@ rule runRDeep:
         normalized_counts = "Pipeline/RDeep/normalized_rdeep_counts.tsv",
     benchmark: repeat("Data/benchmarks/rdeepbenchmark.txt", config["benchmark_repeats"]),
     conda: "../envs/rdeep.yml"
+    threads: 999
     script:
         "../Rscripts/MS_Statistical_Analysis.R"
 

@@ -1,0 +1,15 @@
+channels:
+ - conda-forge
+ - bioconda
+dependencies:
+ - snakemake=8.14
+ - pandas
+ - pip
+ - python=3.11
+ - openpyxl
+ - svgutils
+ - pillow
+ - matplotlib-venn
+ - matplotlib
+ - pip:
+    - git+https://github.com/domonik/RAPDOR.git@dev
