@@ -78,6 +78,7 @@ rule tmpbuildGOTable:
         go_table = rules.processGOTerms.output.go_tsv
     output:
         all_terms = "Pipeline/GO/expandedTerms.tsv"
+    conda: "../envs/annotation_forge.yml"
     script:
         "../Rscripts/getFullGOTerms.R"
 
