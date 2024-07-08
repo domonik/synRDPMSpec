@@ -11,5 +11,6 @@ dependencies:
  - pillow
  - matplotlib-venn
  - matplotlib
+ - requests
  - pip:
     - git+https://github.com/domonik/RAPDOR.git@dev

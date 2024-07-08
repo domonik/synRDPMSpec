@@ -1049,7 +1049,7 @@ rule detectedProteinTable:
     input:
         json = rules.run_RAPDOR.output.json
     output:
-        file = "Pipeline/Paper/TableS1BasedOnKArray.tsv",
+        #file = "Pipeline/Paper/TableS1BasedOnKArray.tsv",
         file2 = "Pipeline/Paper/TableS1BasedOnPeaks.tsv"
     run:
         from RAPDOR.datastructures import RAPDORData
@@ -1095,7 +1095,7 @@ rule detectedProteinTable:
             y=df.columns
         ))
         df.index.name = "Fraction"
-        df.to_csv(output.file, sep="\t")
+        #df.to_csv(output.file, sep="\t")
         df.loc['Sum'] = df.sum(axis=0)
         df2.to_csv(output.file2, sep="\t")
         df2.loc['Sum'] = df2.sum(axis=0)
