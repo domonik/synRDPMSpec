@@ -73,6 +73,36 @@ rule processGOTerms:
         df.to_csv(output.go_tsv, sep="\t", index=False)
         symbols.to_csv(output.symbols, sep="\t", index=False)
 
+rule downloadConditionedSynechocystis:
+    output:
+        soluble = "Data/pr2c00759_si_003.xlsx",
+        membrane = "Data/pr2c00759_si_002.xlsx"
+    threads: 999
+    params:
+        soluble = "https://pubs.acs.org/doi/suppl/10.1021/acs.jproteome.2c00759/suppl_file/pr2c00759_si_003.xlsx",
+        membrane = "https://pubs.acs.org/doi/suppl/10.1021/acs.jproteome.2c00759/suppl_file/pr2c00759_si_002.xlsx"
+    shell:
+        """
+        wget  {params.soluble} -O {output.soluble}
+        wget {params.membrane} -O {output.membrane}
+        """
+
+rule conditionedSynToTSV:
+    input:
+        soluble = rules.downloadConditionedSynechocystis.output.soluble,
+        membrane = rules.downloadConditionedSynechocystis.output.membrane
+    output:
+        soluble = temporary("Pipeline/ConditionedSynechocystis/soluble.tsv"),
+        membrane = temporary("Pipeline/ConditionedSynechocystis/membrane.tsv")
+    run:
+        import pandas as pd
+        soluble = pd.read_excel(input.soluble, skiprows=2)
+        soluble.to_csv(output.soluble, sep="\t", index=False)
+        membrane = pd.read_excel(input.membrane, skiprows=2)
+        membrane.to_csv(output.membrane, sep="\t", index=False)
+
+
+
 rule tmpbuildGOTable:
     input:
         go_table = rules.processGOTerms.output.go_tsv
@@ -208,8 +238,8 @@ rule prepareinitialData:
 
 rule prepareSynConditionedMS:
     input:
-        membrane = "Data/MembraneProteins.csv",
-        soluble = "Data/SolubleProteins.csv"
+        membrane = rules.conditionedSynToTSV.output.membrane,
+        soluble = rules.conditionedSynToTSV.output.soluble
     output:
         intensities = "Pipeline/ConditionedSynechocystis/csv/{condition}_intensities.tsv",
         design = "Pipeline/ConditionedSynechocystis/csv/{condition}_design.tsv",
@@ -256,6 +286,7 @@ rule downloadNatureData:
         muscle="Pipeline/NatureMouse/RawData/{experiment}.xlsx",
     params:
         link = lambda wildcards: config["Mouse"][wildcards.experiment]["link"]
+    threads: 999
     shell:
         """
         wget {params.link} -O {output.muscle}
