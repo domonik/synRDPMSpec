@@ -1,3 +1,4 @@
+name: synRDPMSpec
 channels:
  - conda-forge
  - bioconda

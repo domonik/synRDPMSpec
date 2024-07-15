@@ -100,8 +100,8 @@ rule extract_tophits:
     input:
         tsv = rules.joinAnalysisMethods.output.file
     output:
-        tsv = "Pipeline/Paper/Tables/overlappingProteins.tsv",
-        tsv2 = "Pipeline/Paper/Tables/overlappingProteins_no_ribosomes.tsv",
+        tsv = "Pipeline/Paper/unused/Tables/overlappingProteins.tsv",
+        tsv2 = "Pipeline/Paper/unused/Tables/overlappingProteins_no_ribosomes.tsv",
     run:
         import pandas as pd
         df = pd.read_csv(input.tsv, sep="\t")
@@ -110,8 +110,10 @@ rule extract_tophits:
         top200SVM = set(
             df[df["RAPDORid"].isin(svm_candidates)]["old_locus_tag"]
         )
-
-        topRDPM = set(df[df["ANOSIM R"] >= config["anosimCutoff"]]["old_locus_tag"])
+        rdp_candidates = config["bubble_plot"]["locus_tag"]
+        topRDPM = set(
+            df[df["old_locus_tag"].isin(rdp_candidates)]["old_locus_tag"]
+        )
         df = df[
             [
                 "RAPDORid",
@@ -131,7 +133,7 @@ rule extract_tophits:
                 "contains empty replicate",
             ]
         ]
-        all = topRDPM | top200SVM
+        all = topRDPM
         all = df[df["old_locus_tag"].isin(all)]
         all.to_csv(output.tsv,sep="\t",index=False)
         all = all[all["ribosomal protein"] == False]
@@ -144,7 +146,7 @@ rule createTable1andTableS1:
         tsv2 = rules.joinAnalysisMethods.output.file
     output:
         tsv = "Pipeline/Paper/Table1.tsv",
-        tsv2 = "Pipeline/Paper/TableS2JoinedAllMethods.tsv",
+        tsv2 = "Pipeline/Paper/Supplementary/TableS2JoinedAllMethods.tsv",
     run:
         import pandas as pd
         df = pd.read_csv(input.tsv, sep="\t")
@@ -851,8 +853,8 @@ rule plotConditionedSynechochoColdRibo:
         svg = "Pipeline/Paper/unused/FigureS2.svg",
         svg2 = "Pipeline/Paper/Supplementary/FigureS6.svg",
         html2 = "Pipeline/Paper/Supplementary/html/FigureS6.html",
-        tsv = "Pipeline/Paper/Supplementary/TableforFigureS6.tsv",
-        json = "Pipeline/Paper/Supplementary/RAPDORforFigureS6.json",
+        tsv = "Pipeline/Paper/unused/TableforFigureS6.tsv",
+        json = "Pipeline/Paper/Supplementary/RAPDORforSynechocystisColdShock.json",
     run:
         from RAPDOR.datastructures import RAPDORData
         from RAPDOR.plots import multi_means_and_histo, rank_plot
@@ -1049,14 +1051,14 @@ rule detectedProteinTable:
     input:
         json = rules.run_RAPDOR.output.json
     output:
-        #file = "Pipeline/Paper/TableS1BasedOnKArray.tsv",
-        file2 = "Pipeline/Paper/TableS1BasedOnPeaks.tsv"
+        file2 = "Pipeline/Paper/TableS1BasedOnPeaks.xlsx"
     run:
         from RAPDOR.datastructures import RAPDORData
         import numpy as np
         from scipy.stats import pearsonr
         import pandas as pd
         import plotly.graph_objs as go
+        from matplotlib.colors import LinearSegmentedColormap
 
         file = input.json
         with open(file) as handle:
@@ -1096,9 +1098,20 @@ rule detectedProteinTable:
         ))
         df.index.name = "Fraction"
         #df.to_csv(output.file, sep="\t")
+        colors = ["#008e97", "#fc4c02"]
+
+        # Create the custom color map
+        cmap = LinearSegmentedColormap.from_list('custom_cmap',colors)
+
+
+        def apply_gradient(column):
+            return column.style.background_gradient(cmap=cmap)
+
+
+        df2 = df2.style.background_gradient(cmap=cmap, axis=0)
         df.loc['Sum'] = df.sum(axis=0)
-        df2.to_csv(output.file2, sep="\t")
-        df2.loc['Sum'] = df2.sum(axis=0)
+        df2.to_excel(output.file2)
+        #df2.loc['Sum'] = df2.sum(axis=0)
 
 rule calcANOSIMDistribution:
     input:
@@ -1246,7 +1259,12 @@ rule plotANOSIMRDistribution:
         fig.update_layout(template=DEFAULT_TEMPLATE)
         fig.update_layout(width=config["width"])
         fig.update_layout(height=config["height"]*1.5)
-        fig.update_layout(margin=config["margin"])
+        fig.update_layout(margin=dict(
+            b=50,
+            t=20,
+            r=70,
+            l=70,
+        ))
 
         fig.write_image(output.svg)
 
@@ -1255,6 +1273,7 @@ rule plotEGFHeLa:
         jsons = expand(rules.anosimEGF.output.json,experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
     output:
         svg = "Pipeline/Paper/Subfigures/HeLaPlot.svg",
+        html = "Pipeline/Paper/Subfigures/HeLaPlot.html",
         dist_svg = "Pipeline/Paper/Subfigures/HeLaPlotDistribution.svg",
     run:
         from RAPDOR.datastructures import RAPDORData
@@ -1274,7 +1293,7 @@ rule plotEGFHeLa:
         fig = make_subplots(rows =rows, cols = cols, y_title="log<sub>10</sub>(p-value)", x_title="Jensen-Shannon Distance", subplot_titles=titles, vertical_spacing=0.15)
         dreg = []
 
-        dist_fig = make_subplots(rows=4, cols=1, shared_xaxes=True, row_titles=titles, y_title="relative protein intensities")
+        dist_fig = make_subplots(rows=8, cols=1, shared_xaxes=True, row_titles=titles, y_title="relative protein intensities")
         for idx, data in enumerate(input.jsons):
             row = idx // cols
             col = idx % cols
@@ -1357,11 +1376,23 @@ rule plotEGFHeLa:
             if idx != 0:
                 subfig.update_traces(showlegend=False)
             dist_fig.add_traces(
-                subfig.data,
-                rows=idx+1,
+                subfig.data[0:2],
+                rows=idx*2+1,
                 cols=1
 
             )
+            dist_fig.add_traces(
+                subfig.data[2:],
+                rows=idx*2 + 2,
+                cols=1
+
+            )
+        dist_fig.update_layout(barmode="overlay")
+        dist_fig.update_xaxes(
+            tickvals=data.fractions,
+            ticktext=[val.replace(" ", "<br>").replace("<br>&<br>", " &<br>") for val in data.fractions],
+            tickmode="array"
+        )
         fig.data[1].update(showlegend=True)
         fig.update_layout(
             legend=dict(
@@ -1390,6 +1421,7 @@ rule plotEGFHeLa:
             dict(font=config["fonts"]["axis"])
         )
         fig.write_image(output.svg)
+        fig.write_html(output.html)
         dist_fig.write_image(output.dist_svg)
 
 
@@ -1425,7 +1457,7 @@ rule theoreticalDistinctRValues:
     input:
         json=rules.run_RAPDOR.output.json,
     output:
-        tsv = "Pipeline/Paper/NrDistinctRValues.tsv"
+        tsv = "Pipeline/Paper/unused/NrDistinctRValues.tsv"
     run:
         from RAPDOR.datastructures import RAPDORData
         import numpy as np
@@ -1662,16 +1694,25 @@ rule copySubfigures:
         s3 = expand(rules.plotTopHitDistributions.output, distribution=["S3"]),
         f6 = expand(rules.plotTopHitDistributions.output, distribution=["D1"]),
         wf2 = "Workflow2.svg",
-        wf = "Workflow.svg"
+        wf = "Workflow.svg",
+        f1 = "Data/gradients_and_gels.svg",
+        s2 = "Data/Regression.svg",
+        s1 = "Data/northernblot.svg",
     output:
         s3 = "Pipeline/Paper/Supplementary/FigureS3.svg",
         f6 = "Pipeline/Paper/Figure6.svg",
         wf2 = "Pipeline/Paper/Figure8.svg",
-        wf = "Pipeline/Paper/Figure2.svg"
+        wf = "Pipeline/Paper/Figure2.svg",
+        f1 =  "Pipeline/Paper/Figure1.svg",
+        s2 = "Pipeline/Paper/Supplementary/FigureS2.svg",
+        s1 = "Pipeline/Paper/Supplementary/FigureS1.svg",
     shell:
         """
         cp {input.s3[0]} {output.s3}
         cp {input.f6[0]} {output.f6}
         cp {input.wf2} {output.wf2}
         cp {input.wf} {output.wf}
+        cp {input.f1} {output.f1}
+        cp {input.s2} {output.s2}
+        cp {input.s1} {output.s1}
         """
