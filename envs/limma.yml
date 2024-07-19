@@ -1,0 +1,9 @@
+channels:
+ - conda-forge
+ - bioconda
+ - r
+dependencies:
+ - r-base
+ - r-tidyr
+ - r-dplyr
+ - bioconductor-limma

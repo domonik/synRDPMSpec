@@ -39,6 +39,9 @@ rule all:
         #naturekegg = expand(rules.KEGGEnrichmentMouseNature.output, experiment=config["Mouse"].keys()),
         naturrap = expand(rules.AnalyzeNatureWithRAPDOR.output, experiment=config["Mouse"].keys()),
         HelaPlot = rules.joinHeLaPlot.output,
+        mobility = expand(rules.calcMobilityScore.output, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
+        #limma = expand(rules.collectLimmaResults.output, experiment=[f"egf_{x}min" for x in (2,)]),
+        limma = expand(rules.extractNatureForLimma.output, experiment=[f"egf_{x}min" for x in (2,)]),
 
 
 

@@ -283,7 +283,7 @@ rule prepareSynConditionedMS:
 
 rule downloadNatureData:
     output:
-        muscle="Pipeline/NatureMouse/RawData/{experiment}.xlsx",
+        muscle="Pipeline/NatureSpatial/RawData/{experiment}.xlsx",
     params:
         link = lambda wildcards: config["Mouse"][wildcards.experiment]["link"]
     threads: 999
@@ -291,6 +291,57 @@ rule downloadNatureData:
         """
         wget {params.link} -O {output.muscle}
         """
+
+rule extractNatureForLimma:
+    input:
+        xlsx = rules.downloadNatureData.output.muscle
+    output:
+        tsv = "Pipeline/NatureSpatial/RawData/{experiment}_raw_intensities.tsv",
+        groups = "Pipeline/NatureSpatial/RawData/{experiment}_groups.tsv",
+        design = "Pipeline/NatureSpatial/RawData/{experiment}_design.tsv"
+    run:
+        import pandas as pd
+        cfg = config["Mouse"][wildcards.experiment]
+        df = pd.read_excel(input.xlsx,sheet_name=cfg["col_sheet"])
+        mins = wildcards.experiment.split("_")[-1]
+        cols = [df.columns[1]] + [col for col in df.columns if f"_{mins}_" in col or "_CTRL_" in col]
+        df = df[cols]
+        df.columns = [df.columns[0]] + [("_".join(col.split("_")[-4:])).split(".")[0] for col in df.columns[1:]]
+        df.to_csv(output.tsv, sep="\t", index=False)
+        groups = {
+            "Sample.name": [],
+            "Condition": [],
+            "Bio.Rep": []
+        }
+        names = []
+        treatments = []
+        fractions = []
+        replicates = []
+        for idx, col in enumerate(df.columns[1:]):
+            "EGF_2min_FR6_Rep4"
+            fraction = col.split("_")[-2]
+            if "_CTRL_" in col:
+                condition = "CTRL"
+            else:
+                condition = wildcards.experiment
+            treatments.append(condition)
+            rep = col.split("_")[-1]
+            condition = f"{condition}_{fraction}"
+            groups["Sample.name"].append(col)
+            groups["Condition"].append(condition)
+            groups["Bio.Rep"].append(idx)
+            names.append(col)
+            fractions.append(fraction)
+            replicates.append(rep)
+        design = {"Name": names, "Treatment": treatments, "Fraction": fractions, "Replicate": replicates}
+        design = pd.DataFrame(design)
+        design.to_csv(output.design, sep="\t", index=False)
+        groups = pd.DataFrame(groups)
+        groups.to_csv(output.groups, sep="\t", index=False)
+
+
+
+
 
 def split_muscle(df):
     names, treatments, replicates, fractions = ([] for _ in range(4))
@@ -357,10 +408,10 @@ rule AnalyzeNatureWithRAPDOR:
     input:
         xlsx = rules.downloadNatureData.output.muscle
     output:
-        design = "Pipeline/NatureMouse/prepared/{experiment}_design.tsv",
-        df = "Pipeline/NatureMouse/prepared/{experiment}_intensities.tsv",
-        tsv= "Pipeline/NatureMouse/analyzed/{experiment}_intensities_analyzed.tsv",
-        json = "Pipeline/NatureMouse/analyzed/{experiment}_intensities.json"
+        design = "Pipeline/NatureSpatial/prepared/{experiment}_design.tsv",
+        df = "Pipeline/NatureSpatial/prepared/{experiment}_intensities.tsv",
+        tsv= "Pipeline/NatureSpatial/analyzed/{experiment}_intensities_analyzed.tsv",
+        json = "Pipeline/NatureSpatial/analyzed/{experiment}_intensities.json"
     run:
         import pandas as pd
         from RAPDOR.datastructures import RAPDORData

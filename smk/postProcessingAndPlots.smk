@@ -1268,6 +1268,125 @@ rule plotANOSIMRDistribution:
 
         fig.write_image(output.svg)
 
+rule calcMobilityScore:
+    input:
+        json = rules.anosimEGF.output.json,
+    output:
+        json = temporary("Pipeline/NatureSpatial/mobilityScore/mobility{experiment}.json")
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        import numpy as np
+        from scipy.stats import combine_pvalues
+        from scipy.stats import  ttest_ind
+        from statsmodels.stats.multitest import multipletests
+
+        data = RAPDORData.from_file(input.json)
+        print(data.norm_array.shape)
+        positionwise_mobility = data.norm_array
+        indices = data.internal_design_matrix.groupby("Treatment",group_keys=True,observed=False).apply(lambda x: list(x.index))
+        print(data._treatment_means.shape)
+        mobility = np.mean(np.abs(data._treatment_means[0] - data._treatment_means[1]), axis=-1)
+        max_ctrl = np.argmax((data._treatment_means[0] - data._treatment_means[1]), axis=-1)
+        max_treat = np.argmax((data._treatment_means[1] - data._treatment_means[0]), axis=-1)
+        data.df["max ctrl"] = max_ctrl
+        data.df["max treat"] = max_treat
+        data.df["mobility score"] = mobility
+        data.to_json(output.json)
+
+rule prepareForLimma:
+    input:
+        json = rules.calcMobilityScore.output.json
+    output:
+        tsv = temporary("Pipeline/NatureSpatial/limma/prep{experiment}FR{fraction}.tsv")
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        import numpy as np
+        data = RAPDORData.from_file(input.json)
+        fraction = int(wildcards.fraction) - 1
+        proteins = data.df[(data.df["max ctrl"] == fraction) | (data.df["max treat"] == fraction)]["RAPDORid"]
+
+        d_fraction = data.norm_array[:, :, fraction]
+        d_ctrl = d_fraction[:, data.indices[0]]
+        d_treat = d_fraction[:, data.indices[1]]
+        ctrl_columns = ['CTRL1', 'CTRL2', 'CTRL3', 'CTRL4']
+        treat_columns = ['EGF1', 'EGF2', 'EGF3', 'EGF4']
+        df_ctrl = pd.DataFrame(d_ctrl, columns=ctrl_columns)
+        df_treat = pd.DataFrame(d_treat, columns=treat_columns)
+        df = pd.concat([data.df["RAPDORid"], df_ctrl, df_treat], axis=1)
+        ctrl_filter = np.sum((~(df.loc[:, ctrl_columns] == 0)), axis=1)
+        treat_filter = np.sum((~(df.loc[:, treat_columns] == 0)), axis=1)
+        filter = ((ctrl_filter >= 3) | (treat_filter >= 3))
+        df = df[filter]
+        df = df[df["RAPDORid"].isin(proteins)]
+
+        df.to_csv(output.tsv, sep="\t", index=False)
+        #df.to_csv(output.tsv)
+
+rule runLimma:
+    input:
+        tsv = rules.prepareForLimma.output.tsv,
+    output:
+        tsv = "Pipeline/NatureSpatial/limma/pvals{experiment}FR{fraction}.tsv"
+    conda: "../envs/limma.yml"
+    script:
+        "../Rscripts/limmaR.R"
+
+
+rule collectLimmaResults:
+    input:
+        json=rules.calcMobilityScore.output.json,
+        fraction_data= expand(rules.runLimma.output.tsv, fraction=list(range(1, 7)), allow_missing=True)
+    output:
+        json = "Pipeline/NatureSpatial/limma/final{experiment}.json"
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        from scipy.stats import combine_pvalues
+        import numpy as np
+        from statsmodels.stats.multitest import multipletests
+        data = RAPDORData.from_file(input.json)
+        frac_data = []
+        for idx, file in enumerate(input.fraction_data):
+            df = pd.read_csv(file, sep="\t" )
+            df = df[["adj.P.Val"]]
+            df = df.rename({"adj.P.Val": f"p.adj Fraction{idx+1}"}, axis=1)
+            frac_data.append(df)
+            t = "WDR75"
+        frac_data = pd.concat(frac_data, axis=1)
+        max_ctrl = data.df["max ctrl"]
+        max_treat = data.df["max treat"]
+        pvals = []
+        pv1s = []
+        pv2s = []
+        for idx, _ in enumerate(max_ctrl):
+            protein = data.df.loc[idx, "RAPDORid"]
+            gene = data.df
+            m_ctrl = max_ctrl[idx]
+            m_treat = max_treat[idx]
+            if protein in frac_data.index:
+                pval1 = frac_data.loc[protein].iloc[m_ctrl]
+                pval2 = frac_data.loc[protein].iloc[m_treat]
+            else:
+                pval1 = np.nan
+                pval2 = np.nan
+            if np.isnan(pval1):
+                pval1 = 1
+            if np.isnan(pval2):
+                pval2 = 1
+            comb = combine_pvalues([pval1, pval2])
+            pv1s.append(pval1)
+            pv2s.append(pval2)
+            pvals.append(comb.pvalue)
+        pvals = np.asarray(pvals)
+        mask = np.isnan(pvals)
+        _, pvals[~mask], _, _ = multipletests(pvals[~mask],method="fdr_bh")
+        data.df["limma adj p-Value"] = pvals
+        data.df["ctrl p-value"] = pv1s
+        data.df["treat p-value"] = pv2s
+        data.to_json(output.json)
+
+
+
+
 rule plotEGFHeLa:
     input:
         jsons = expand(rules.anosimEGF.output.json,experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
@@ -1293,7 +1412,7 @@ rule plotEGFHeLa:
         fig = make_subplots(rows =rows, cols = cols, y_title="log<sub>10</sub>(p-value)", x_title="Jensen-Shannon Distance", subplot_titles=titles, vertical_spacing=0.15)
         dreg = []
 
-        dist_fig = make_subplots(rows=8, cols=1, shared_xaxes=True, row_titles=titles, y_title="relative protein intensities")
+        dist_fig = make_subplots(rows=4, cols=1, shared_xaxes=True, row_titles=titles, y_title="relative protein intensities", vertical_spacing=0.01)
         for idx, data in enumerate(input.jsons):
             row = idx // cols
             col = idx % cols
@@ -1367,29 +1486,28 @@ rule plotEGFHeLa:
                 fig.add_annotation(
                     anno
                 )
-            subfig = plot_protein_distributions(ids, data, mode="bar", colors=DEFAULT_COLORS)
+            subfig = plot_protein_distributions(ids,data,mode="bar",colors=DEFAULT_COLORS, barmode="overlay", plot_type="raw")
             subfig.update_traces(legend="legend1")
             subfig.data[1].update(showlegend=False)
             subfig.data[3].update(showlegend=False)
             subfig.data[0].update(name="Control")
             subfig.data[2].update(name="EGF")
+            subfig.update_traces(marker=dict(size=10),selector=dict(mode='markers'))
             if idx != 0:
                 subfig.update_traces(showlegend=False)
             dist_fig.add_traces(
-                subfig.data[0:2],
-                rows=idx*2+1,
+                subfig.data,
+                rows=idx + 1,
                 cols=1
 
             )
-            dist_fig.add_traces(
-                subfig.data[2:],
-                rows=idx*2 + 2,
-                cols=1
-
-            )
-        dist_fig.update_layout(barmode="overlay")
+        dist_fig.update_layout(
+            barmode="overlay",
+            bargroupgap=0,
+            bargap=0,
+        )
         dist_fig.update_xaxes(
-            tickvals=data.fractions,
+            tickvals=list(range(len(data.fractions))),
             ticktext=[val.replace(" ", "<br>").replace("<br>&<br>", " &<br>") for val in data.fractions],
             tickmode="array"
         )
@@ -1572,7 +1690,7 @@ rule GOTermEnrichmentMouseNature:
     conda: "../envs/ClusterProfiler.yml"
     threads: 10
     output:
-        enriched = directory("Pipeline/NatureMouse/GO/{experiment}GOEnrichment/",)
+        enriched = directory("Pipeline/NatureSpatial/GO/{experiment}GOEnrichment/",)
     script: "../Rscripts/AnalyzeGoTermsMouse.R"
 
 
@@ -1582,7 +1700,7 @@ rule KEGGEnrichmentMouseNature:
     conda: "../envs/ClusterProfiler.yml"
     threads: 10
     output:
-        enriched = directory("Pipeline/NatureMouse/KEGG/{experiment}GOEnrichment/",)
+        enriched = directory("Pipeline/NatureSpatial/KEGG/{experiment}GOEnrichment/",)
     script: "../Rscripts/AnalyzeKEGG.R"
 
 rule plotKEGGEnrichment:
