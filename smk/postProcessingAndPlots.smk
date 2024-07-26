@@ -145,8 +145,8 @@ rule createTable1andTableS1:
         tsv = rules.extract_tophits.output.tsv2,
         tsv2 = rules.joinAnalysisMethods.output.file
     output:
-        tsv = "Pipeline/Paper/Table1.tsv",
-        tsv2 = "Pipeline/Paper/Supplementary/TableS2JoinedAllMethods.tsv",
+        tsv = "Pipeline/Paper/Tables/Table1.tsv",
+        xlsx = "Pipeline/Paper/Supplementary/Tables/TableS5.xlsx",
     run:
         import pandas as pd
         df = pd.read_csv(input.tsv, sep="\t")
@@ -176,7 +176,7 @@ rule createTable1andTableS1:
                 "contains empty replicate",
             ]]
         df = df.sort_values(by="Rank")
-        df.to_csv(output.tsv2, index=False, sep="\t")
+        df.to_excel(output.xlsx, index=False)
 
 
 
@@ -623,8 +623,8 @@ rule plotRuntime:
     input:
         all_benchmark = rules.meanRuntimeAndRAM.output.file
     output:
-        html = "Pipeline/Paper/Supplementary/html/benchmark.html",
-        svg = "Pipeline/Paper/Supplementary/FigureS5.svg"
+        html = "Pipeline/Paper/Supplementary/Figures/html/benchmark.html",
+        svg = "Pipeline/Paper/Supplementary/Figures/FigureS5.svg"
     run:
         import plotly.graph_objs as go
         import plotly.express as px
@@ -851,10 +851,10 @@ rule plotConditionedSynechochoColdRibo:
         json = expand(rules.runOnSynData.output.json, condition="COLD")
     output:
         svg = "Pipeline/Paper/unused/FigureS2.svg",
-        svg2 = "Pipeline/Paper/Supplementary/FigureS6.svg",
-        html2 = "Pipeline/Paper/Supplementary/html/FigureS6.html",
-        tsv = "Pipeline/Paper/unused/TableforFigureS6.tsv",
-        json = "Pipeline/Paper/Supplementary/RAPDORforSynechocystisColdShock.json",
+        svg2 = "Pipeline/Paper/Supplementary/Figures/FigureS6.svg",
+        html2 = "Pipeline/Paper/Supplementary/Figures/html/FigureS6.html",
+        tsv = "Pipeline/Paper/Supplementary/Tables/TableS6.xlsx",
+        json = "Pipeline/Paper/Supplementary/JSON/RAPDORforSynechocystisColdShock.json",
     run:
         from RAPDOR.datastructures import RAPDORData
         from RAPDOR.plots import multi_means_and_histo, rank_plot
@@ -888,6 +888,8 @@ rule plotConditionedSynechochoColdRibo:
         fig.write_html(output.html2)
         data.df["mentioned in wang"] = data.df["Gene"].isin(names)
         data.export_csv(output.tsv, sep="\t")
+        df = data.df[data._data_cols]
+        df.to_excel(output.tsv, index=False)
         data.to_json(output.json)
 
 
@@ -1051,7 +1053,7 @@ rule detectedProteinTable:
     input:
         json = rules.run_RAPDOR.output.json
     output:
-        file2 = "Pipeline/Paper/TableS1BasedOnPeaks.xlsx"
+        file2 = "Pipeline/Paper/Supplementary/Tables/TableS4.xlsx"
     run:
         from RAPDOR.datastructures import RAPDORData
         import numpy as np
@@ -1185,7 +1187,7 @@ rule plotANOSIMRDistribution:
         npegf = expand(rules.anosimEGF.output.np, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
         jsonegf = expand(rules.AnalyzeNatureWithRAPDOR.output.json, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
     output:
-        svg = "Pipeline/Paper/Supplementary/FigureS4.svg",
+        svg = "Pipeline/Paper/Supplementary/Figures/FigureS4.svg",
     threads: 1
     run:
         from RAPDOR.datastructures import RAPDORData
@@ -1294,7 +1296,7 @@ rule calcMobilityScore:
     input:
         json = rules.anosimEGF.output.json,
     output:
-        json = "Pipeline/NatureSpatial/mobilityScore/mobility{experiment}.json"
+        json = "Pipeline/Paper/Supplementary/JSON/HeLaEGFTreatment_{experiment}.json"
     run:
         from RAPDOR.datastructures import RAPDORData
         import numpy as np
@@ -1839,13 +1841,26 @@ rule joinNaturePlot:
         with open(output.svg,"w") as handle:
             handle.write(svg_string)
 
+rule copyTableS2:
+    input:
+        s2 = "Data/svm.tsv",
+        s3 = config["intensities"]
+    output:
+        s2 = "Pipeline/Paper/Supplementary/Tables/TableS2.xlsx",
+        s3  = "Pipeline/Paper/Supplementary/Tables/TableS3.xlsx"
+    run:
+        import pandas as pd
+        df = pd.read_csv(input.s2, sep="\t")
+        df.to_excel(output.s2, index=False)
+        df2 = pd.read_csv(input.s3, sep="\t")
+        df2.to_excel(output.s3, index=False)
 
 rule postProcessRapdorData:
     input:
         json=rules.run_RAPDOR.output.json,
         drop="Data/drop_columns.txt"
     output:
-        file = "Pipeline/Paper/synechoRAPDORFile.json",
+        file = "Pipeline/Paper/Supplementary/JSON/synechoRAPDORGradRFile.json",
     run:
         from RAPDOR.datastructures import RAPDORData
         with open(input.drop) as handle:
@@ -1865,13 +1880,13 @@ rule copySubfigures:
         s2 = "Data/Regression.svg",
         s1 = "Data/northernblot.svg",
     output:
-        s3 = "Pipeline/Paper/Supplementary/FigureS3.svg",
+        s3 = "Pipeline/Paper/Supplementary/Figures/FigureS3.svg",
         f6 = "Pipeline/Paper/Figure6.svg",
         wf2 = "Pipeline/Paper/Figure8.svg",
         wf = "Pipeline/Paper/Figure2.svg",
         f1 =  "Pipeline/Paper/Figure1.svg",
-        s2 = "Pipeline/Paper/Supplementary/FigureS2.svg",
-        s1 = "Pipeline/Paper/Supplementary/FigureS1.svg",
+        s2 = "Pipeline/Paper/Supplementary/Figures/FigureS2.svg",
+        s1 = "Pipeline/Paper/Supplementary/Figures/FigureS1.svg",
     shell:
         """
         cp {input.s3[0]} {output.s3}
