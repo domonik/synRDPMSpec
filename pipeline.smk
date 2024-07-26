@@ -42,7 +42,8 @@ rule all:
         mobility = expand(rules.calcMobilityScore.output, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
         #limma = expand(rules.collectLimmaResults.output, experiment=[f"egf_{x}min" for x in (2,)]),
         limma = expand(rules.extractNatureForLimma.output, experiment=[f"egf_{x}min" for x in (2,)]),
-        sup = rules.copyTableS2.output
+        sup = rules.copyTableS2.output,
+        file1 = rules.zipSupplementaryFile1.output
 
 
 

@@ -845,6 +845,15 @@ rule createFigure5:
         cp {input.bubble[0]} {output.svg}
         """
 
+rule cpRedistSynecho:
+    input:
+        json = rules.runOnSynData.output.json
+    output:
+        json = "Pipeline/Paper/Supplementary/JSON/RAPDORforSynechocystisabioticStress{condition}.json"
+    shell:
+        "cp {input.json} {output.json}"
+
+
 
 rule plotConditionedSynechochoColdRibo:
     input:
@@ -854,7 +863,7 @@ rule plotConditionedSynechochoColdRibo:
         svg2 = "Pipeline/Paper/Supplementary/Figures/FigureS6.svg",
         html2 = "Pipeline/Paper/Supplementary/Figures/html/FigureS6.html",
         tsv = "Pipeline/Paper/Supplementary/Tables/TableS6.xlsx",
-        json = "Pipeline/Paper/Supplementary/JSON/RAPDORforSynechocystisColdShock.json",
+        #json = "Pipeline/Paper/Supplementary/JSON/RAPDORforSynechocystisColdShock.json",
     run:
         from RAPDOR.datastructures import RAPDORData
         from RAPDOR.plots import multi_means_and_histo, rank_plot
@@ -888,9 +897,9 @@ rule plotConditionedSynechochoColdRibo:
         fig.write_html(output.html2)
         data.df["mentioned in wang"] = data.df["Gene"].isin(names)
         data.export_csv(output.tsv, sep="\t")
-        df = data.df[data._data_cols]
+        data: RAPDORData
+        df = data.extra_df.drop(["id"],axis=1)
         df.to_excel(output.tsv, index=False)
-        data.to_json(output.json)
 
 
 rule analyzeProteinAbundance:
@@ -1167,7 +1176,7 @@ rule anosimEGF:
         data = RAPDORData.from_file(data)
         data: RAPDORData
         print("starting")
-        _, distribution = data.calc_anosim_p_value(999,threads=threads, mode="global")
+        _, distribution = data.calc_anosim_p_value(-1,threads=threads, mode="global")
         print(data.df["global ANOSIM adj p-Value"])
         indices = data.df[data.df["min replicates per group"] == samples]["id"].to_numpy()
         distribution = distribution[:, indices].flatten()
@@ -1897,3 +1906,14 @@ rule copySubfigures:
         cp {input.s2} {output.s2}
         cp {input.s1} {output.s1}
         """
+
+rule zipSupplementaryFile1:
+    input:
+        stress = expand(rules.cpRedistSynecho.output.json, condition=["COLD", "HEAT", "DARK", "N", "Fe"]),
+        synechorapdor = rules.postProcessRapdorData.output.file,
+        hela = expand(rules.calcMobilityScore.output.json, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)])
+    output:
+        file = "Pipeline/Paper/Supplementary/SupplementaryFile1.gz"
+    shell:
+        "zip -r {output.file} $(dirname {input.synechorapdor})"
+
