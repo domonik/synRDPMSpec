@@ -1119,7 +1119,7 @@ rule calcANOSIMDistribution:
         json_cold_shock=expand(rules.runOnSynData.output.json, condition="COLD")
 
     output:
-        gradr_np="Pipeline/analyzed/ANOSIMDistributionGradR.json",
+        gradr_np="Pipeline/analyzed/ANOSIMDistributionGradR.np",
         cold_shock_syn="Pipeline/analyzed/ANOSIMDistributionColdShock.np",
     threads: 10
     run:
@@ -1146,7 +1146,6 @@ rule calcANOSIMDistribution:
             distribution = distribution[:, indices].flatten()
             with open(outfile, "wb") as handle:
                 np.save(handle, distribution)
-
             del distribution
             print("saved")
 
@@ -1166,7 +1165,7 @@ rule anosimEGF:
         data = RAPDORData.from_file(data)
         data: RAPDORData
         print("starting")
-        _, distribution = data.calc_anosim_p_value(-1,threads=threads, mode="global")
+        _, distribution = data.calc_anosim_p_value(999,threads=threads, mode="global")
         print(data.df["global ANOSIM adj p-Value"])
         indices = data.df[data.df["min replicates per group"] == samples]["id"].to_numpy()
         distribution = distribution[:, indices].flatten()
@@ -1182,7 +1181,9 @@ rule anosimEGF:
 rule plotANOSIMRDistribution:
     input:
         np=rules.calcANOSIMDistribution.output,
+        json=rules.calcANOSIMDistribution.input,
         npegf = expand(rules.anosimEGF.output.np, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
+        jsonegf = expand(rules.AnalyzeNatureWithRAPDOR.output.json, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
     output:
         svg = "Pipeline/Paper/Supplementary/FigureS4.svg",
     threads: 1
@@ -1191,8 +1192,10 @@ rule plotANOSIMRDistribution:
         import plotly.graph_objs as go
         from plotly.subplots import make_subplots
         ip_files = list(input.np) + list(input.npegf)
+        json_files = list(input.json) + list(input.jsonegf)
+        ip_files = zip(ip_files, json_files)
         fig = make_subplots(
-            rows=len(ip_files),
+            rows=len(json_files),
             shared_xaxes=True,
             x_title="ANOSIM R",
             y_title="Probability",
@@ -1234,11 +1237,12 @@ rule plotANOSIMRDistribution:
         fig.add_shape(type="line",
             x0=x_0,y0=egf_ys[0],x1=x_0,y1=egf_ys[-1],xref="x2 domain",yref="paper",line_color="black"
         )
-        for plot_id, data in enumerate(ip_files):
+        for plot_id, (data, json_file) in enumerate(ip_files):
 
             with open(data, "rb") as handle:
                 distribution = np.load(handle)
-            print("distribution")
+            rapdor_data = RAPDORData.from_file(json_file)
+            original_dist = rapdor_data.df["ANOSIM R"]
 
             y, x = np.histogram(
                 distribution,
@@ -1256,6 +1260,24 @@ rule plotANOSIMRDistribution:
                 ),
             ), row=plot_id+1, col=1)
 
+            y, x = np.histogram(
+                original_dist,
+                bins=np.linspace(-1,1,int(np.floor(2 / 0.01)))
+            )
+            y = y / np.sum(y)
+
+            fig.add_trace(go.Bar(
+                x=x,
+                y=y,
+                showlegend=False,
+                marker=dict(
+                    line=dict(color="black",width=1),
+                    color=DEFAULT_COLORS[1],
+                    opacity=0.25
+                ),
+            ),row=plot_id + 1,col=1)
+
+
         fig.update_layout(template=DEFAULT_TEMPLATE)
         fig.update_layout(width=config["width"])
         fig.update_layout(height=config["height"]*1.5)
@@ -1265,14 +1287,14 @@ rule plotANOSIMRDistribution:
             r=70,
             l=70,
         ))
-
+        fig.update_layout(barmode="overlay", bargap=0)
         fig.write_image(output.svg)
 
 rule calcMobilityScore:
     input:
         json = rules.anosimEGF.output.json,
     output:
-        json = temporary("Pipeline/NatureSpatial/mobilityScore/mobility{experiment}.json")
+        json = "Pipeline/NatureSpatial/mobilityScore/mobility{experiment}.json"
     run:
         from RAPDOR.datastructures import RAPDORData
         import numpy as np
@@ -1321,6 +1343,35 @@ rule prepareForLimma:
 
         df.to_csv(output.tsv, sep="\t", index=False)
         #df.to_csv(output.tsv)
+
+
+rule joinRAPDORNature:
+    input:
+        jsons = expand(rules.anosimEGF.output.json,experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
+    output:
+        file ="FOOOO.tsv"
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        dfs = []
+        d = (2, 8, 20, 90)
+        for idx, data in enumerate(input.jsons):
+            data = RAPDORData.from_file(data)
+            df = data.df
+            if idx == 0:
+                df = df[["Gene.names", "global ANOSIM adj p-Value", "Mean Distance"]]
+            else:
+                df = df[["global ANOSIM adj p-Value", "Mean Distance"]]
+            df = df.rename({"global ANOSIM adj p-Value": f"pval {d[idx]}"}, axis=1)
+            df[f"{d[idx]} sig"] = df[f"pval {d[idx]}"] <= 0.1
+
+            dfs.append(df)
+
+        mdf = pd.concat(dfs, axis=1)
+        mdf["s"] = mdf[[f"{d[idx]} sig" for idx, _ in enumerate(input.jsons)]].sum(axis=1)
+        mdf = mdf[mdf["s"] >= 3]
+        print(mdf)
+
+
 
 rule runLimma:
     input:
@@ -1412,7 +1463,6 @@ rule plotEGFHeLa:
         fig = make_subplots(rows =rows, cols = cols, y_title="log<sub>10</sub>(p-value)", x_title="Jensen-Shannon Distance", subplot_titles=titles, vertical_spacing=0.15)
         dreg = []
 
-        dist_fig = make_subplots(rows=4, cols=1, shared_xaxes=True, row_titles=titles, y_title="relative protein intensities", vertical_spacing=0.01)
         for idx, data in enumerate(input.jsons):
             row = idx // cols
             col = idx % cols
@@ -1457,13 +1507,11 @@ rule plotEGFHeLa:
                 y=-1 * np.log10(0.1),
                 row=row+1, col=col+1, line=dict(dash='dot')
             )
-            fig.add_vline(
-                x=0.2,
-                row=row + 1,col=col + 1,line=dict(dash='dot')
-            )
-            highlight = {"FOXJ3": (0.11, 0.7)} if idx > 1 else {"FOXJ3":(0, 1.25) , "GRB2": (.5, .6), "CBL": (.15, .7), "SHC1":(0.12, 0.9) }
+            highlight = {"ITSN1": (0.11, 0.7), "MITF": (0., 1.45), "FOXJ3": (0.5, 0.6)} if idx > 1 else {"ITSN1":(0, 1.2) , "MITF": (0., 1.4), "FOXJ3": (0.2, 1.55),  "GRB2": (.5, .6), "CBL": (.15, .7), "SHC1":(0.12, 0.9) }
+            if idx == 3:
+                highlight["ITSN1"] = (0.11, 0.3)
+                highlight["FOXJ3"] = (0.5, 1.35)
             sdf = df[df["Gene.names"].isin(highlight)]
-            ids = sdf[sdf["Gene.names"] == "FOXJ3"]["RAPDORid"]
             for (_, row) in sdf.iterrows():
                 y = row["-log10(p-value)"]
                 x = row["Mean Distance"]
@@ -1486,31 +1534,27 @@ rule plotEGFHeLa:
                 fig.add_annotation(
                     anno
                 )
-            subfig = plot_protein_distributions(ids,data,mode="bar",colors=DEFAULT_COLORS, barmode="overlay", plot_type="raw")
-            subfig.update_traces(legend="legend1")
-            subfig.data[1].update(showlegend=False)
-            subfig.data[3].update(showlegend=False)
-            subfig.data[0].update(name="Control")
-            subfig.data[2].update(name="EGF")
-            subfig.update_traces(marker=dict(size=10),selector=dict(mode='markers'))
-            if idx != 0:
-                subfig.update_traces(showlegend=False)
-            dist_fig.add_traces(
-                subfig.data,
-                rows=idx + 1,
-                cols=1
 
-            )
-        dist_fig.update_layout(
-            barmode="overlay",
-            bargroupgap=0,
-            bargap=0,
-        )
-        dist_fig.update_xaxes(
-            tickvals=list(range(len(data.fractions))),
-            ticktext=[val.replace(" ", "<br>").replace("<br>&<br>", " &<br>") for val in data.fractions],
-            tickmode="array"
-        )
+        data = RAPDORData.from_file(input.jsons[0])
+        sdf = data.df
+        ids = sdf[sdf["Gene.names"].isin(["FOXJ3", "MITF", "ITSN1"])]["RAPDORid"]
+        dist_fig = plot_protein_distributions(ids,data,mode="bar",colors=DEFAULT_COLORS,barmode="overlay", vertical_spacing=0.03)
+        dist_fig.update_traces(legend="legend1")
+        dist_fig.data[1].update(showlegend=False)
+        dist_fig.data[3].update(showlegend=False)
+        dist_fig.data[0].update(name="Control")
+        dist_fig.data[2].update(name="EGF")
+        dist_fig.update_traces(marker=dict(size=10),selector=dict(mode='markers'))
+        # dist_fig.update_layout(
+        #     barmode="overlay",
+        #     bargroupgap=0,
+        #     bargap=0,
+        # )
+        # dist_fig.update_xaxes(
+        #     tickvals=list(range(len(data.fractions))),
+        #     ticktext=[val.replace(" ", "<br>").replace("<br>&<br>", " &<br>") for val in data.fractions],
+        #     tickmode="array"
+        # )
         fig.data[1].update(showlegend=True)
         fig.update_layout(
             legend=dict(
@@ -1538,6 +1582,10 @@ rule plotEGFHeLa:
         dist_fig.update_annotations(
             dict(font=config["fonts"]["axis"])
         )
+        dist_fig.update_layout(font=config["fonts"]["default"], legend=dict(font=config["fonts"]["legend"], title=None))
+        for annotation in dist_fig.layout.annotations:
+            if annotation.text == "Fraction":
+                annotation.update(y=annotation.y - 0.04)
         fig.write_image(output.svg)
         fig.write_html(output.html)
         dist_fig.write_image(output.dist_svg)
