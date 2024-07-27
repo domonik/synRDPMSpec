@@ -61,6 +61,8 @@ rule joinAnalysisMethods:
         import pandas as pd
         import numpy as np
         svm_table = pd.read_csv(input.svm, sep="\t",  decimal=",")
+        svm_table["SVM Rank"] = np.arange(1,len(svm_table) + 1)
+
         rapdor_table = pd.read_csv(input.rapdor, sep="\t")
         rdeep_table = pd.read_csv(input.rdeep, sep=";")
 
@@ -78,7 +80,7 @@ rule joinAnalysisMethods:
         svm_table = svm_table.rename({"Gene": "old_locus_tag", "Score": "SVM Score"}, axis=1)
         svm_table["SVM RNA-binding"] = svm_table["Prediction"] == "RNA-binding protein"
 
-        svm_table = svm_table[["old_locus_tag", "SVM Score", "SVM RNA-binding"]]
+        svm_table = svm_table[["old_locus_tag", "SVM Score", "SVM RNA-binding", "SVM Rank"]]
         svm_table = svm_table.sort_values(by="SVM Score", ascending=False)
         svm_table = svm_table.drop_duplicates("old_locus_tag")
 
@@ -89,7 +91,6 @@ rule joinAnalysisMethods:
         rapdor_table["Gene"] = rapdor_table["Gene"].fillna("None")
         rapdor_table["Gene"] = rapdor_table["Gene"].replace("None", pd.NA)
 
-        rapdor_table["SVM Rank"] = np.arange(1,len(rapdor_table) + 1)
         rapdor_table["RDeeP significant"] = (rapdor_table["ctrl_peak_p_value"] <= 0.05) | (rapdor_table["rnase_peak_p_value"] <= 0.05 )
 
         rapdor_table = rapdor_table.sort_values(by="Rank", ascending=False)
@@ -406,7 +407,9 @@ rule plotTopHitDistributions:
         with open(input.json) as handle:
             rapdor_data = RAPDORData.from_json(handle.read())
         df = rapdor_data.df
-        topids = df[df["old_locus_tag"].isin(dist_config["locus_tags"])]["RAPDORid"]
+        topids = df[df["old_locus_tag"].isin(dist_config["locus_tags"])]
+        topids = topids.sort_values(["Rank"])
+        topids = topids["RAPDORid"]
         fig = plot_protein_distributions(
             topids, rapdordata=rapdor_data, colors=COLOR_SCHEMES["Dolphin"],
             plot_type="zoomed", column_widths=[0.7, 0.3], horizontal_spacing=0.075, title_col="Protein name", vertical_spacing=dist_config["vertical_spacing"]
@@ -416,8 +419,14 @@ rule plotTopHitDistributions:
             legend=dict(font=config["fonts"]["legend"], y=1.015),
             legend2=dict(font=config["fonts"]["legend"], y=dist_config["legend2_y"]),
         )
-        fig.update_layout(margin=dict(l=70, r=30, b=50))
+        fig.update_layout(margin=dict(l=70, r=50, b=45))
         fig.update_annotations(font=config["fonts"]["annotations"])
+        for annotation in fig.layout.annotations:
+            if annotation.text not in ("rel. Protein Intensities", "Zoom to strongest shift", "fraction"):
+                annotation.update(x=annotation.x + 0.075)
+            elif annotation.text == "Fraction":
+                annotation.update(y=annotation.y+0.2)
+
         fig.update_traces(line=dict(width=2),
                 marker=dict(size=3),)
         fig.update_yaxes(nticks=2, col=2)
@@ -785,7 +794,7 @@ rule createBubblePlot:
             elif annotation.text == "GroEL1":
                 annotation.update(showarrow=True,ay=-.3,ax=-10,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "CphA":
-                annotation.update(showarrow=True,ax=-12.5, ay=-.2, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=-17, ay=0.7, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Tsf":
                 annotation.update(showarrow=True,ay=.1,ax=annotation.x,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "FtsH2":
@@ -804,8 +813,8 @@ rule createBubblePlot:
                 annotation.update(showarrow=True,ay=-1.25,ax=-19, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll1388":
                 annotation.update(showarrow=True,ax=-11,ay=.9, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "ChlI":
-                annotation.update(showarrow=True,ax=-9 ,ay=.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "Sll1961":
+                annotation.update(showarrow=True,ax=-8.5 ,ay=.75, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll0921":
                 annotation.update(showarrow=True,ax=-18,ay=-1.6, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Pgm":
@@ -830,6 +839,9 @@ rule createBubblePlot:
                 annotation.update(showarrow=True,ax=-10,ay=-1.75,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "RpoC1":
                 annotation.update(showarrow=True,ax=-7,ay=-1.25,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "ChlI":
+                annotation.update(showarrow=True,ax=-19,ay=-.4,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+
         fig.write_image(output.svg)
         fig.write_html(output.html)
         fig.write_json(output.json)
@@ -1594,6 +1606,8 @@ rule plotEGFHeLa:
             dict(font=config["fonts"]["axis"])
         )
         dist_fig.update_layout(font=config["fonts"]["default"], legend=dict(font=config["fonts"]["legend"], title=None))
+        dist_fig.update_layout(margin=config["margin"])
+        dist_fig.update_layout(margin=dict(b=70))
         for annotation in dist_fig.layout.annotations:
             if annotation.text == "Fraction":
                 annotation.update(y=annotation.y - 0.04)

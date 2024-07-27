@@ -3,7 +3,7 @@ intensities: "Data/synIntensitiesIBAQ.tsv"
 design: "Data/synDesignIBAQ.tsv"
 
 bubble_plot:
-  locus_tag: ["sll1388", "slr0782", "sll0921", "sll0947", "slr0711", "slr0147", "sll0726", "slr1143", "slr2130", "sll0284", "slr0678", "ssl3335", "slr2130", "sll1967" ,"slr1531","sll0517" ,"slr1265" ,"sll7087"]
+  locus_tag: ["sll1388", "slr0782", "sll0921", "sll0947", "slr0711", "slr0147", "sll0726", "slr1143", "slr2130", "sll0284", "slr0678", "ssl3335", "slr2130", "sll1967" ,"slr1531","sll0517" ,"slr1265" ,"sll7087", "slr1030", "slr2002", "sll1961"]
 
 benchmark_repeats:  10
 fonts:
@@ -42,8 +42,8 @@ F3:
 
 distributions:
   D1:
-    locus_tags: ["sll1388", "slr0782", "sll0921", "sll0947", "slr0711", "slr0147", "sll0726", "slr1143", "slr2130", "sll0284", "slr0678", "ssl3335", "slr2130", "sll1967" ,"slr1531","sll0517" ,"slr1265" ,"sll7087"]
-    height: 900
+    locus_tags: ["sll1388", "slr0782", "sll0921", "sll0947", "slr0711", "slr0147", "sll0726", "slr1143", "slr2130", "sll0284", "slr0678", "ssl3335", "slr2130", "sll1967" ,"slr1531","sll0517" ,"slr1265" ,"sll7087", "slr1030", "slr2002", "sll1961"]
+    height: 1000
     vertical_spacing: 0.022
     legend2_y: 1.05
   D2:
