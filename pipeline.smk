@@ -9,6 +9,7 @@ rule all:
         rdeep =  rules.runRDeep.output,
         rdpmspec = rules.plotMeanDistribution.output,
         p = rules.plotBarcodePlot.output,
+        df = rules.prepareinitialData.output,
 
         #joined = expand(rules.plotVennDiagramm.output, ribo=[False, True, "only"]),
         #allvenns = rules.plotAllVenns.output,

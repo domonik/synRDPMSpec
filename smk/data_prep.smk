@@ -205,13 +205,16 @@ rule prepareinitialData:
         uniprot_anno = uniprot_anno[~uniprot_anno["old_locus_tag"].isna()]
         rapdor_table = rapdor_table.merge(uniprot_anno, on="old_locus_tag", how="left")
 
+
         rapdor_table['Gene'] = rapdor_table['Gene Names'].fillna(rapdor_table['Gene'])
+        rapdor_table.loc[rapdor_table["Gene"] == "hpf", "Gene"] = "raiA/lrtA"
         def capitalize_string(s):
             if pd.isna(s):
                 return s
             else:
                 return s[0].upper() + s[1:3] + s[3:].upper()
         rapdor_table["Protein name"] = rapdor_table["Gene"].apply(capitalize_string)
+        rapdor_table.loc[rapdor_table["Gene"] == "raiA/lrtA", "Protein name"] = "RaiA/LrtA"
         rapdor_table["small_ribosomal"] = rapdor_table["Gene"].str.contains(r'\b(rps|Rps)(?![1-9][A-Za-z])',case=False)
         rapdor_table.loc[rapdor_table["Gene"].str.contains(r'rps1A|rps1b') == True, "small_ribosomal"] = False
         rapdor_table["large_ribosomal"] = rapdor_table["Gene"].str.contains(r'\b(rpl|Rpl)', case=False)

@@ -422,10 +422,12 @@ rule plotTopHitDistributions:
         fig.update_layout(margin=dict(l=70, r=50, b=45))
         fig.update_annotations(font=config["fonts"]["annotations"])
         for annotation in fig.layout.annotations:
-            if annotation.text not in ("rel. Protein Intensities", "Zoom to strongest shift", "fraction"):
-                annotation.update(x=annotation.x + 0.075)
+            if annotation.text not in ("rel. Protein Intensities", "Zoom to strongest shift", "Fraction"):
+                annotation.update(x=1.2, xanchor="right")
             elif annotation.text == "Fraction":
-                annotation.update(y=annotation.y+0.2)
+                annotation.update(yshift=-30)
+            if annotation.text == "RaiA/LrtA":
+                annotation.text = "LrtA"
 
         fig.update_traces(line=dict(width=2),
                 marker=dict(size=3),)
@@ -809,7 +811,7 @@ rule createBubblePlot:
                 annotation.update(showarrow=True,ay=1.25,ax=-6, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Slr1143":
                 annotation.update(showarrow=True,ay=1.5,ax=-4, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-            elif annotation.text == "Hpf":
+            elif annotation.text == "RaiA/LrtA":
                 annotation.update(showarrow=True,ay=-1.25,ax=-19, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll1388":
                 annotation.update(showarrow=True,ax=-11,ay=.9, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
@@ -1927,7 +1929,6 @@ rule zipSupplementaryFile1:
         synechorapdor = rules.postProcessRapdorData.output.file,
         hela = expand(rules.calcMobilityScore.output.json, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)])
     output:
-        file = "Pipeline/Paper/Supplementary/SupplementaryFile1.gz"
+        file = "Pipeline/Paper/Supplementary/SupplementaryFile1.zip"
     shell:
-        "zip -r {output.file} $(dirname {input.synechorapdor})"
-
+        "zip -j {output.file} {input.synechorapdor} {input.stress} {input.hela}"
