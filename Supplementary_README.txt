@@ -5,7 +5,7 @@ into the RAPDOR Dash tool. Files are at least compatible with RAPDOR version 0.1
 we cannot guarantee that.
 To learn about how to install RAPDOR and upload those files visit:
 
-https://domonik.github.io/RAPDOR/v0.1.4/
+https://domonik.github.io/RAPDOR/
 
 
 ## Files
@@ -13,6 +13,7 @@ https://domonik.github.io/RAPDOR/v0.1.4/
 ### synechoRAPDORGradRFile.json
 
 The File for the Synechocystis sp. GradR data. This is the same file that is displayed in our publications webserver.
+
 
 ### HeLaEGFTreatment_egf_{x mins}.json
 
