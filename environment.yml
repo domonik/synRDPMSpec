@@ -14,4 +14,4 @@ dependencies:
  - matplotlib
  - requests
  - pip:
-    - git+https://github.com/domonik/RAPDOR.git@dev
+    - rapdor=0.1.4
