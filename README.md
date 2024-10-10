@@ -21,7 +21,8 @@ This pipeline requires a Linux system since some dependencies are not available 
 
 ####  Dependencies
 
-see how to run section
+Dependencies are stored in the [environment.yml](./environment.yml) and in the yaml files in the [envs](./envs) directory. 
+The specific versions used for the publication are stored in the `*.pin.txt` files
 
 
 ## Data preparation
