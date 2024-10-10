@@ -27,9 +27,8 @@ The specific versions used for the publication are stored in the `*.pin.txt` fil
 
 ## Data preparation
 
-You need the MaxQuant pre analyzed dataset in order to run the pipeline. Please contact the repository owner for required data.
 
-First you need to download the following files and place them into a folder called Data
+First you need to download the following files and place them into the directory called Data
 
 - https://pubs.acs.org/doi/suppl/10.1021/acs.jproteome.2c00759/suppl_file/pr2c00759_si_002.xlsx
 - https://pubs.acs.org/doi/suppl/10.1021/acs.jproteome.2c00759/suppl_file/pr2c00759_si_003.xlsx

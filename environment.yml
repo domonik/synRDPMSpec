@@ -4,7 +4,7 @@ channels:
  - bioconda
 dependencies:
  - snakemake=8.14
- - pandas
+ - pandas=2.2.0
  - pip
  - python=3.11
  - openpyxl
