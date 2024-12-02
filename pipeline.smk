@@ -3,11 +3,17 @@ include: "smk/rdeep.smk"
 include: "smk/rapdor.smk"
 include: "smk/data_prep.smk"
 include: "smk/postProcessingAndPlots.smk"
+include: "smk/runRAPDORonRDeePData.smk"
 
 rule all:
     input:
         rdeep =  rules.runRDeep.output,
         rdpmspec = rules.plotMeanDistribution.output,
+        qc = rules.joinQCPlot.output,
+        rdeeprapdor = rules.runRAPDORonRDeeP.output,
+        rdeeporiginal = rules.plotRDeePRHistogram.output,
+        humango = rules.plotAUROC.output,
+        plotRDeePDataVennDiagram = rules.plotRDeePDataVennDiagram.output,
         #p = rules.plotBarcodePlot.output,
         #df = rules.prepareinitialData.output,
         #bubble_plot = expand(rules.createBubblePlot.output, highlight=["overlapping"]),

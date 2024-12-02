@@ -4,6 +4,7 @@ import numpy as np
 
 include: "rapdor.smk"
 include: "benchmarking.smk"
+include: "runRAPDORonRDeePData.smk"
 
 from RAPDOR.plots import DEFAULT_TEMPLATE, COLOR_SCHEMES
 
@@ -46,8 +47,52 @@ rule fitMultiGaussian:
         df.to_csv(output.file)
 
 
+rule pca:
+    input:
+        file=rules.run_RAPDOR.output.json,
+    output:
+        svg = "Pipeline/plots/QC_PCA.svg",
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        import pandas as pd
+        import math
+        from RAPDOR.plots import plot_sample_pca, COLOR_SCHEMES
+        with open(input.file) as handle:
+            data = RAPDORData.from_json(handle.read())
+        dolphin = COLOR_SCHEMES["Dolphin"]
+        fig = plot_sample_pca(data, plot_dims=(1, 2), ntop=0.2, summarize_fractions=True, colors=dolphin)
+        fig.update_layout(
+            template=DEFAULT_TEMPLATE,
+            margin=dict(b=50, l=70, r=200, t=20),
+            height=config["QCPlot"]["B"]["height"])
+        fig.write_image(output.svg)
 
-
+rule sampleCorrelation:
+    input:
+        file=rules.run_RAPDOR.output.json,
+    output:
+        svg = "Pipeline/plots/QC_Correlation.svg",
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        import pandas as pd
+        import math
+        from RAPDOR.plots import plot_sample_correlation, COLOR_SCHEMES
+        with open(input.file) as handle:
+            data = RAPDORData.from_json(handle.read())
+        dolphin = list(COLOR_SCHEMES["Dolphin"])
+        dolphin.insert(1, "white")
+        fig = plot_sample_correlation(
+            data,
+            method="pearson",
+            summarize_fractions=False,
+            use_raw=False,
+            highlight_replicates=False,
+            ntop=None,
+            colors=dolphin
+        )
+        fig.update_layout(template=DEFAULT_TEMPLATE, margin=dict(b=50, l=50, r=50, t=50), height=config["QCPlot"]["A"]["height"])
+        fig.update_xaxes(showticklabels=False)
+        fig.write_image(output.svg)
 
 
 rule joinAnalysisMethods:
@@ -1209,6 +1254,8 @@ rule plotANOSIMRDistribution:
         json=rules.calcANOSIMDistribution.input,
         npegf = expand(rules.anosimEGF.output.np, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
         jsonegf = expand(rules.AnalyzeNatureWithRAPDOR.output.json, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
+        rdeppdistribution = rules.runRAPDORonRDeeP.output.RDistribution,
+        rdeppjson = rules.runRAPDORonRDeeP.output.json
     output:
         svg = "Pipeline/Paper/Supplementary/Figures/FigureS4.svg",
     threads: 1
@@ -1216,8 +1263,8 @@ rule plotANOSIMRDistribution:
         from RAPDOR.datastructures import RAPDORData
         import plotly.graph_objs as go
         from plotly.subplots import make_subplots
-        ip_files = list(input.np) + list(input.npegf)
-        json_files = list(input.json) + list(input.jsonegf)
+        ip_files = list(input.np) + list(input.npegf) + [input.rdeppdistribution]
+        json_files = list(input.json) + list(input.jsonegf) + [input.rdeppjson]
         ip_files = zip(ip_files, json_files)
         fig = make_subplots(
             rows=len(json_files),
@@ -1866,6 +1913,36 @@ rule joinNaturePlot:
         with open(output.svg,"w") as handle:
             handle.write(svg_string)
 
+
+rule joinQCPlot:
+    input:
+        a = rules.sampleCorrelation.output.svg,
+        b = rules.pca.output.svg,
+    output:
+        svg = "Pipeline/Paper/Supplementary/QC.svg"
+    run:
+        from svgutils.compose import Figure, Panel, SVG, Text
+
+        b_y = config["QCPlot"]["A"]["height"]
+        ges_y = b_y + config["QCPlot"]["B"]["height"]
+        f = Figure("624px",f"{ges_y}px",
+            Panel(
+                SVG(input.a),
+                Text("A",2,15,size=config["multipanel_font_size"],weight='bold',font="Arial")
+
+            ),
+            Panel(
+                SVG(input.b),
+                Text("B",2,2,size=config["multipanel_font_size"],weight='bold',font="Arial")
+            ).move(0,b_y),
+        )
+        svg_string = f.tostr()
+        svg_string = svg_string.decode().replace("encoding='ASCII'","encoding='utf-8'")
+        with open(output.svg,"w") as handle:
+            handle.write(svg_string)
+
+
+
 rule copyTableS2:
     input:
         s2 = "Data/svm.tsv",
@@ -1894,6 +1971,8 @@ rule postProcessRapdorData:
         data = RAPDORData.from_file(input.json)
         data.df = data.df.drop(drop, axis=1)
         data.to_json(output.file)
+
+
 
 rule copySubfigures:
     input:
