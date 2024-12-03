@@ -3173,27 +3173,26 @@ shift_select <- function(shift) {
 
 #**************************************************************************************************
 # Apply functions evaluate_shifts and shift_select to all proteins
-
+print("Apply functions evaluate_shifts and shift_select to all proteins")
 table_ctrl_mean$selected_shift <- apply(vect, 2, function(pos) {
-															  shifts <- evaluate_shifts(pos)
-															  shifts <- unlist(shifts)
-															  shifts
-															  selected_shift <- shift_select(shifts)
-															  selected_shift <- unlist(selected_shift)
-															  selected_shift
-															  })
+	shifts <- evaluate_shifts(pos)
+	shifts <- unlist(shifts)
+	selected_shift <- shift_select(shifts)
+	selected_shift <- unlist(selected_shift)
+	selected_shift
+})
 
 table_rnase_mean$selected_shift <- apply(vect, 2, function(pos) {
-															  shifts <- evaluate_shifts(pos)
-															  selected_shift <- shift_select(shifts)
-															  selected_shift <- unlist(selected_shift)
-															  selected_shift
-															  })
+	shifts <- evaluate_shifts(pos)
+	selected_shift <- shift_select(shifts)
+	selected_shift <- unlist(selected_shift)
+	selected_shift
+})
 
 
 #**************************************************************************************************
 # Add some columns to help to select for interesting proteins
-
+print("Add some columns to help to select for interesting proteins")
 # Number of shift per protein
 table_ctrl_mean$nb_shift <- apply(vect, 2, function(pos) {
 														  shift <- as.numeric(unlist(table_ctrl_mean[pos, "selected_shift"]))
@@ -3238,54 +3237,55 @@ table_rnase_mean$nb_shift <- apply(vect, 2, function(pos) {
 #**************************************************************************************************
 
 # function to add lines with shifts from a protein "pos" to an existing dataframe "tab"
-shift_table <- function(tab,pos) {
-							  		prot_name <- as.vector(tab$protein_name)
+print("PART 7")
+shift_table <- function(tab, pos) {
+	prot_name <- as.vector(tab$protein_name)
 
-							  		shift <- as.numeric(unlist(table_ctrl_mean[pos, "selected_shift"]))
-									n <- length(shift)/9
+	shift <- as.numeric(unlist(table_ctrl_mean[pos, "selected_shift"]))
+	n <- length(shift) / 9
 
-									if (n<1) {shift_mat <- rep(0,9)
-											  } else {
-													  shift_mat <- matrix(shift,n,9,byrow=FALSE)
-													  }
-									shift_mat <- as.data.frame(shift_mat)
+	if (n < 1) { shift_mat <- rep(0, 9)
+	} else {
+		shift_mat <- matrix(shift, n, 9, byrow = FALSE)
+	}
+	shift_mat <- as.data.frame(shift_mat)
 
-									if (n<1) {
-												tab[nrow(tab)+1,2:26] <- as.numeric(unlist(table_ctrl_mean[pos,1:25]))
-												tab[nrow(tab),]$max_ctrl <- table_ctrl_mean[pos,"max_th"]
-												tab[nrow(tab),]$nb_max_ctrl <- table_ctrl_mean[pos,"nb_max_th"]
+	if (n < 1) {
+		tab[nrow(tab) + 1, 2:26] <- as.numeric(unlist(table_ctrl_mean[pos, 1:25]))
+		tab[nrow(tab),]$max_ctrl <- table_ctrl_mean[pos, "max_th"]
+		tab[nrow(tab),]$nb_max_ctrl <- table_ctrl_mean[pos, "nb_max_th"]
 
-												tab[nrow(tab),29:53] <- as.numeric(unlist(table_rnase_mean[pos,1:25]))
-												tab[nrow(tab),]$max_rnase <- table_rnase_mean[pos,"max_th"]
-												tab[nrow(tab),]$nb_max_rnase <- table_rnase_mean[pos,"nb_max_th"]
+		tab[nrow(tab), 29:53] <- as.numeric(unlist(table_rnase_mean[pos, 1:25]))
+		tab[nrow(tab),]$max_rnase <- table_rnase_mean[pos, "max_th"]
+		tab[nrow(tab),]$nb_max_rnase <- table_rnase_mean[pos, "nb_max_th"]
 
-												tab[nrow(tab),]$nb_shift <- table_rnase_mean[pos,"nb_shift"]
+		tab[nrow(tab),]$nb_shift <- table_rnase_mean[pos, "nb_shift"]
 
-												tab[nrow(tab),57:65] <- as.numeric(unlist(shift_mat))
+		tab[nrow(tab), 57:65] <- as.numeric(unlist(shift_mat))
 
-												prot_name <- c(prot_name, pos)
+		prot_name <- c(prot_name, pos)
 
-												} else {
-														for (i in 1:n) {
-																		tab[nrow(tab)+1,2:26] <- as.numeric(unlist(table_ctrl_mean[pos,1:25]))
-																		tab[nrow(tab),]$max_ctrl <- table_ctrl_mean[pos,"max_th"]
-																		tab[nrow(tab),]$nb_max_ctrl <- table_ctrl_mean[pos,"nb_max_th"]
+	} else {
+		for (i in 1:n) {
+			tab[nrow(tab) + 1, 2:26] <- as.numeric(unlist(table_ctrl_mean[pos, 1:25]))
+			tab[nrow(tab),]$max_ctrl <- table_ctrl_mean[pos, "max_th"]
+			tab[nrow(tab),]$nb_max_ctrl <- table_ctrl_mean[pos, "nb_max_th"]
 
-																		tab[nrow(tab),29:53] <- as.numeric(unlist(table_rnase_mean[pos,1:25]))
-																		tab[nrow(tab),]$max_rnase <- table_rnase_mean[pos,"max_th"]
-																		tab[nrow(tab),]$nb_max_rnase <- table_rnase_mean[pos,"nb_max_th"]
+			tab[nrow(tab), 29:53] <- as.numeric(unlist(table_rnase_mean[pos, 1:25]))
+			tab[nrow(tab),]$max_rnase <- table_rnase_mean[pos, "max_th"]
+			tab[nrow(tab),]$nb_max_rnase <- table_rnase_mean[pos, "nb_max_th"]
 
-																		tab[nrow(tab),]$nb_shift <- table_rnase_mean[pos,"nb_shift"]
+			tab[nrow(tab),]$nb_shift <- table_rnase_mean[pos, "nb_shift"]
 
-																		tab[nrow(tab),57:65] <- as.numeric(unlist(shift_mat[i,]))
+			tab[nrow(tab), 57:65] <- as.numeric(unlist(shift_mat[i,]))
 
-																		prot_name <- c(prot_name, pos)
-																		}
-														}
-							 		tab$protein_name <- prot_name
-							 		tab
+			prot_name <- c(prot_name, pos)
+		}
+	}
+	tab$protein_name <- prot_name
+	tab
 
-							  		}
+}
 
 
 # Creation of a summary table
@@ -3296,7 +3296,7 @@ lgth <- length(rownames)
 sum_tab <- numeric(0)
 sum_tab <- matrix(as.numeric(table_ctrl_mean[rownames[1],1:25]), 1, 25, byrow = "TRUE")
 sum_tab <- as.data.frame(sum_tab)
-pos <- "QKI_HUMAN"
+pos <- "HNRPU_HUMAN"
 colnames(sum_tab)[1:25] <- c("C_mean_fxn1","C_mean_fxn2","C_mean_fxn3","C_mean_fxn4","C_mean_fxn5","C_mean_fxn6","C_mean_fxn7","C_mean_fxn8","C_mean_fxn9","C_mean_fxn10","C_mean_fxn11","C_mean_fxn12","C_mean_fxn13","C_mean_fxn14","C_mean_fxn15","C_mean_fxn16","C_mean_fxn17","C_mean_fxn18","C_mean_fxn19","C_mean_fxn20","C_mean_fxn21","C_mean_fxn22","C_mean_fxn23","C_mean_fxn24","C_mean_fxn25")
 sum_tab$max_ctrl <- table_ctrl_mean[pos,"max_th"]
 sum_tab$nb_max_ctrl <- table_ctrl_mean[pos,"nb_max_th"]
@@ -3307,7 +3307,7 @@ sum_tab$max_rnase <- table_rnase_mean[pos,"max_th"]
 sum_tab$nb_max_rnase <- table_rnase_mean[pos,"nb_max_th"]
 
 sum_tab$nb_shift <- as.numeric(table_rnase_mean[pos,"nb_shift"])
-
+print("Trying that stuff for final table")
 shift <- as.numeric(unlist(table_ctrl_mean[pos, "selected_shift"]))
 									n <- length(shift)/9
 									shift_mat <- matrix(shift,n,9,byrow=FALSE)
@@ -3324,6 +3324,8 @@ sum_tab <- as.data.frame(sum_tab)
 
 
 # addition of the other rows:
+print("Trying that stuff for other rows in table")
+
 for (i in 2:lgth) {
 				   pos <- rownames[i]
 				   sum_tab <- shift_table(sum_tab, pos)
@@ -3388,14 +3390,14 @@ sum_tab_exp[!is.na(sum_tab_exp$ctrl_peak_amount_loss) & sum_tab_exp$ctrl_peak_am
 sum_tab_exp[((!is.na(sum_tab_exp$ctrl_peak_amount_loss) & sum_tab_exp$ctrl_peak_amount_loss <= 0)+(sum_tab_exp$rnase_peak_p_value > 0.05)) == 2,][, c("rnase_peak","rnase_peak_amount","rnase_peak_amount_gain","rnase_peak_p_value")] <- 0
 
 # Remove rnase peak info for negative gain. No shift.
-sum_tab_exp[sum_tab_exp$rnase_peak_amount_gain <= 0,][, c("nb_shift","dist","rnase_peak","rnase_peak_amount","rnase_peak_amount_gain","rnase_peak_p_value")] <- 0
+#sum_tab_exp[sum_tab_exp$rnase_peak_amount_gain <= 0,][, c("nb_shift","dist","rnase_peak","rnase_peak_amount","rnase_peak_amount_gain","rnase_peak_p_value")] <- 0
 
 # Remove ctrl peak info for non_significant loss -> not the case in the sample file: error message
 # Error in value[[jvseq[[jjj]]]] : subscript out of bounds
 # sum_tab_exp[((sum_tab_exp$rnase_peak_amount_gain <= 0)+(sum_tab_exp$ctrl_peak_p_value > 0.05)) == 2,][, c("ctrl_peak","ctrl_peak_amount","ctrl_peak_amount_loss","ctrl_peak_p_value")] <- 0
 
 # Remove right_shift info for negative gain.
-sum_tab_exp[sum_tab_exp$rnase_peak_amount_gain <= 0,][, c("right_shift")] <- FALSE
+#sum_tab_exp[!is.na(sum_tab_exp$rnase_peak_amount_gain) & sum_tab_exp$rnase_peak_amount_gain <= 0,][, c("right_shift")] <- FALSE
 
 # Remove right_shift info for non_significant gain. Just in case -> apparently there are no cases like this - therefore error message:
 # Error in `[<-.data.frame`(`*tmp*`, , c("right_shift"), value = FALSE) : replacement has 1 row, data has 0

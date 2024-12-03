@@ -54,8 +54,8 @@ rule processHumanGOTerms:
         import pandas as pd
         import numpy as np
         df = pd.read_csv(input.go_terms, sep="\t")
-        df = df[["Entry Name", "Gene Ontology IDs"]]
-        df = df.rename({"Entry Name": "old_locus_tag"}, axis=1)
+        df = df[["Entry", "Gene Ontology IDs"]]
+        df = df.rename({"Entry": "old_locus_tag"}, axis=1)
         symbols = df[["old_locus_tag"]]
         symbols = symbols.drop_duplicates()
         symbols["random"] = np.arange(0, len(symbols))
@@ -78,32 +78,35 @@ rule expandHumanGOTerms:
 rule processRNABinding:
     input:
         string = rules.downloadString.output.string,
-        string_info = rules.downloadString.output.string_info,
-        go = rules.expandHumanGOTerms.output.all_terms
+        go = rules.expandHumanGOTerms.output.all_terms,
+        uniprot = "Data/GOAnnoHuman.tsv"
     output:
-        string = "Pipeline/RAPDORonRDeeP/stringProteinsWithRNABinding.tsv",
+        mapping = "Pipeline/RAPDORonRDeeP/ProteinsWithRNABinding.tsv",
     run:
         binding = pd.read_csv(input.go,sep="\t")
         binding = binding[binding["GOTerm"] == "GO:0003723"]
-        binding = set(binding["old_locus_tag"].unique().tolist()).union(set(binding["old_locus_tag"].str.split("_HUMAN").str[0].unique().tolist()))
-
-        string_info = pd.read_csv(input.string_info, sep="\t", compression="gzip")
+        binding = set(binding["old_locus_tag"].unique().tolist())
+        uniprot = pd.read_csv(input.uniprot,sep="\t")
         string = pd.read_csv(input.string, sep=" ", compression="gzip")
-        print(string.columns)
+        string = string[string["combined_score"] >= 400]
+        mapping = uniprot[["Entry", "STRING"]]
+        mapping["STRING"] = mapping["STRING"].str.split(";").str[0]
+        string = string.merge(mapping, left_on='protein1', right_on='STRING', )
+        string = string.merge(mapping, left_on='protein2', right_on='STRING', suffixes=("_protein1", "_protein2"))
 
-        string = string.merge(string_info, left_on='protein1', right_on='#string_protein_id').drop([ '#string_protein_id', 'protein1'] ,axis=1)
-        string.rename(columns={'preferred_name': 'protein1_name'},inplace=True)
-        print(string.columns)
-        string = string.merge(string_info,left_on='protein2', right_on='#string_protein_id').drop(['protein2', '#string_protein_id'],axis=1)
-        string.rename(columns={'preferred_name': 'protein2_name'},inplace=True)
-        string = string[(string["protein1_name"].isin(binding)) | (string["protein2_name"].isin(binding))]
-        string.to_csv(output.string, index=False, sep="\t")
+        mapping["RNA binding"] = mapping["Entry"].isin(binding)
+
+
+        string = string[(string["Entry_protein1"].isin(binding)) | (string["Entry_protein2"].isin(binding))]
+        binding_complex = set(string["Entry_protein1"]).union(set(string["Entry_protein2"]))
+        mapping["RNA binding complex"] = mapping["Entry"].isin(binding_complex)
+        mapping["RNA binding or complex"] = mapping["RNA binding complex"] | mapping["RNA binding"]
+        mapping.to_csv(output.mapping, index=False, sep="\t")
 
 
 rule fixDataLayout:
     input:
         tsv = "Data/proteinGroups.txt",
-        go = rules.expandHumanGOTerms.output.all_terms
     output:
         intensities = "Pipeline/RAPDORonRDeeP/intensities.tsv",
         design = "Pipeline/RAPDORonRDeeP/design.tsv",
@@ -114,8 +117,8 @@ rule fixDataLayout:
         pattern = r'^Reporter intensity corrected [1-6] (F[1-9]|1[0-9]|2[0-5])$'
 
         data_cols = [col for col in df.columns if "Reporter intensity corrected " in col]
-        df = df[["Protein", "Protein IDs"] + data_cols]
         df.loc[df["Protein"].isna(), "Protein"] = df.loc[df["Protein"].isna(), "Protein IDs"]
+        df = df[df["Razor + unique peptides"] >= 2]
         data = {
             "Name": [],
             "Treatment": [],
@@ -130,26 +133,30 @@ rule fixDataLayout:
             5: 3,
             6: 3
         }
-        rdeep_df = df.rename({"Protein": "name"}, axis=1).drop("Protein IDs", axis=1)
+        rnase_cols = []
+        ctrl_cols = []
         for col in df[data_cols]:
             frac = int(col.split("F")[-1])
             rep = col.split("Reporter intensity corrected ")[-1].split(" ")[0]
             treatment = "CTRL" if int(rep) in [1, 5, 3] else "RNase"
             rep = repmap[int(rep)]
             rdeep_name = f"{treatment.lower()}{rep}-{str(frac).zfill(2)}"
-            rdeep_df = rdeep_df.rename({col: rdeep_name}, axis=1)
-
-            data["Name"].append(col)
+            df = df.rename({col: rdeep_name}, axis=1)
+            if treatment == "CTRL":
+                ctrl_cols.append(rdeep_name)
+            else:
+                rnase_cols.append(rdeep_name)
+            data["Name"].append(rdeep_name)
             data["Treatment"].append(treatment)
             data["Fraction"].append(frac)
             data["Replicate"].append(rep)
         design = pd.DataFrame(data)
         design.to_csv(output.design, index=False, sep="\t")
 
-        binding = pd.read_csv(input.go,sep="\t")
-        binding = binding[binding["GOTerm"] == "GO:0003723"]
-        rna_binding = binding["old_locus_tag"].unique()
-        df["RNA binding"] = df["Protein"].isin(rna_binding)
+        df = df[["Protein", "Protein IDs", "Majority protein IDs"] + data["Name"]]
+        df = df[(df[rnase_cols].sum(axis=1) != 0) & (df[ctrl_cols].sum(axis=1) != 0)]
+        rdeep_df = df.rename({"Protein": "name"}, axis=1).drop(["Protein IDs", "Majority protein IDs"], axis=1)
+
         df.to_csv(output.intensities, index=False, sep="\t")
 
 
@@ -181,17 +188,31 @@ rule originalRDeeP:
     script: "../Rscripts/OriginalRDeeP.R"
 
 
-# rule postProcessNormCounts:
-#     input:
-#         tsv = rules.originalRDeeP.output.normalized_counts
-#     output:
-#         intensities = "",
-#         design =
+rule postProcessNormCounts:
+    input:
+        tsv = rules.originalRDeeP.output.normalized_counts,
+        rapdor = rules.fixDataLayout.output.intensities,
+        mapping = rules.processRNABinding.output.mapping
+    output:
+        intensities = "Pipeline/RAPDORonRDeeP/IntensitiesNorm.tsv",
+    run:
+        df = pd.read_csv(input.tsv, sep="\t")
+        df.columns = df.columns.str.replace(".", "-")
+        rapdor_df = pd.read_csv(input.rapdor, sep="\t")
+        mapping = pd.read_csv(input.mapping, sep="\t")
+        rapdor_df = rapdor_df.merge(df, left_on="Protein", right_index=True, suffixes=("_delete", ""))
+        rapdor_df = rapdor_df[[col for col in rapdor_df.columns if  "_delete" not in col]]
+        rapdor_df["Protein ID"] = rapdor_df["Majority protein IDs"].str.split(";").str[0]
+        rapdor_df = rapdor_df.merge(mapping, left_on="Protein ID", right_on="Entry")
+        print(rapdor_df.head())
+        print(rapdor_df.columns)
+        rapdor_df.to_csv(output.intensities, sep="\t", index=False)
+
 
 
 rule runRAPDORonRDeeP:
     input:
-        intensities = rules.fixDataLayout.output.intensities,
+        intensities = rules.postProcessNormCounts.output.intensities,
         design = rules.fixDataLayout.output.design,
         rdeeP_data = rules.originalRDeeP.output.outfile
     output:
@@ -202,6 +223,8 @@ rule runRAPDORonRDeeP:
     run:
         from RAPDOR.datastructures import RAPDORData
         import pandas as pd
+        from multiprocessing import set_start_method
+        set_start_method("spawn", force=True)
 
         df = pd.read_csv(input.intensities,sep="\t")
         rdeep_df = pd.read_csv(input.rdeeP_data, sep=" ")
@@ -234,7 +257,6 @@ rule sortAndRankRDeep:
         file = rules.originalRDeeP.output.outfile,
         rna_binding = rules.expandHumanGOTerms.output.all_terms,
         rapdor = rules.runRAPDORonRDeeP.output.tsv,
-        string = rules.processRNABinding.output.string
     output:
         file = "Pipeline/RAPDORonRDeeP/RDeePRAPDORJoined.tsv",
     run:
@@ -242,9 +264,6 @@ rule sortAndRankRDeep:
         df = pd.read_csv(input.file, sep=" ")
         binding_df = pd.read_csv(input.rna_binding, sep="\t")
         rapdor_df = pd.read_csv(input.rapdor, sep="\t")
-        string = pd.read_csv(input.string, sep="\t")
-        binding = binding_df[binding_df["GOTerm"] == "GO:0003723"]
-        na_binding = binding_df[binding_df["GOTerm"] == "GO:0003676"]
         print(df)
         df["maxpval"] = df[["rnase_peak_p_value", "ctrl_peak_p_value"]].max(axis=1)
         df["end"] = (df["ctrl_peak_amount_loss"] <= 0) | (df["rnase_peak_amount_gain"] <= 0) | (df["dist"].abs() <= 1)
@@ -253,18 +272,6 @@ rule sortAndRankRDeep:
         df["RDeepRank"] = np.arange(0, df.shape[0])
         print(rapdor_df)
         df = pd.merge(rapdor_df, df, how="left", left_on="RAPDORid", right_on="protein_name")
-
-        rna_binding = binding["old_locus_tag"].unique()
-        na_binding = na_binding["old_locus_tag"].unique()
-        df["RNA binding"] = df["RAPDORid"].isin(rna_binding)
-        df["NA binding"] = df["RAPDORid"].isin(na_binding)
-        df["RNA binding complex"] = (
-                df["RAPDORid"].isin(string["protein1_name"]) |
-                df["RAPDORid"].isin(string["protein2_name"]) |
-                df["RAPDORid"].str.replace("_HUMAN", "").isin(string["protein1_name"]) |
-                df["RAPDORid"].str.replace("_HUMAN", "").isin(string["protein2_name"])
-        )
-        df["RNA binding or complex"] = df["RNA binding"] | df["RNA binding complex"]
         df.to_csv(output.file, sep="\t", index=False)
 
 
@@ -283,13 +290,15 @@ rule plotRDeePDataVennDiagram:
         import string
         df = pd.read_csv(input.rapdorfile, sep="\t")
         rdeep = set(df[df["RDeePSignificant"]]["RAPDORid"].tolist())
-        rdeep_correct = set(df[df["RDeePSignificant"] & df["RNA binding or complex"]]["RAPDORid"].tolist())
-        rapdor = set(df[(df["ANOSIM R"] >= 0.8)]["RAPDORid"].tolist())
-        rapdor_correct = set(df[(df["ANOSIM R"] >= 0.8) & df["RNA binding or complex"]]["RAPDORid"].tolist())
+        rdeep_rdp = set(df[df["RDeePSignificant"] & df["RNA binding or complex"]]["RAPDORid"].tolist())
+        rdeep_rbp = set(df[df["RDeePSignificant"] & df["RNA binding"]]["RAPDORid"].tolist())
+        rapdor = set(df[(df["ANOSIM R"] >= 1)]["RAPDORid"].tolist())
+        rapdor_rdp = set(df[(df["ANOSIM R"] >= 1) & df["RNA binding or complex"]]["RAPDORid"].tolist())
+        rapdor_rbp = set(df[(df["ANOSIM R"] >= 1) & df["RNA binding"]]["RAPDORid"].tolist())
         colors = COLOR_SCHEMES["Dolphin"]
 
-        rdeep_tp = len(rdeep_correct)
-        rapdor_tp = len(rapdor_correct)
+        rdeep_tp = len(rdeep_rdp)
+        rapdor_tp = len(rapdor_rdp)
         ppv_rdeep = rdeep_tp / len(rdeep)
         ppv_rapdor = rapdor_tp / len(rapdor)
         data = {
@@ -302,11 +311,12 @@ rule plotRDeePDataVennDiagram:
         df.to_csv(output.tsv, sep="\t", index=False)
 
         fig1 = venn_to_plotly(L_sets=(rapdor, rdeep), L_labels=("RAPDOR", "RDeeP"), L_color=colors)
-        fig2 = venn_to_plotly(L_sets=(rapdor_correct, rdeep_correct), L_labels=("RAPDOR", "RDeeP"), L_color=colors)
-        multi_fig = sp.make_subplots(rows=1,cols=2)
+        fig2 = venn_to_plotly(L_sets=(rapdor_rbp, rdeep_rbp), L_labels=("RAPDOR", "RDeeP"), L_color=colors)
+        fig3 = venn_to_plotly(L_sets=(rapdor_rdp, rdeep_rdp), L_labels=("RAPDOR", "RDeeP"), L_color=colors)
+        multi_fig = sp.make_subplots(rows=1,cols=3, horizontal_spacing=0.01)
         annos = string.ascii_uppercase
 
-        for idx, (name, fig) in enumerate([("All", fig1), ("RNA dependent proteins", fig2)], 1):
+        for idx, (name, fig) in enumerate([("All", fig1), ("RNA binding proteins", fig2), ("RNA dependent proteins", fig3)], 1):
             fig.update_layout(
                 xaxis=dict(showgrid=False,zeroline=False,showline=False),
                 yaxis=dict(showgrid=False,zeroline=False,showline=False)
@@ -364,7 +374,8 @@ rule plotRDeePDataVennDiagram:
         multi_fig.update_layout(template=DEFAULT_TEMPLATE)
         multi_fig.update_layout(
             legend={'itemsizing': 'trace', "orientation": "h", "yanchor": "bottom", "y": 1.01},
-            width=config["width"],height=300,font=config["fonts"]["legend"]
+            width=config["width"],height=300,font=config["fonts"]["legend"],
+            margin=dict(r=20, l=20, b=20, t=20)
         )
         for annotation in multi_fig.layout.annotations:
             if annotation.text.startswith("<b>"):
@@ -425,11 +436,14 @@ rule plotAUROC:
         fig = go.Figure()
         df = pd.read_csv(input.tsv,sep="\t")
         data = (
-            ("Rank", "RAPDOR", "RNA binding or complex"),
-            ("RDeepRank", "RDeeP", "RNA binding or complex"),
+            ("Rank", "RAPDOR", "RNA binding or complex", COLOR_SCHEMES["Dolphin"][0]),
+            ("RDeepRank", "RDeeP", "RNA binding or complex", COLOR_SCHEMES["Dolphin"][1]),
+            ("Rank", "RAPDOR", "RNA binding", COLOR_SCHEMES["Dolphin"][0]),
+            ("RDeepRank", "RDeeP", "RNA binding", COLOR_SCHEMES["Dolphin"][1]),
         )
-        colors = COLOR_SCHEMES["Dolphin"]
-        for idx, (sort_col, name, term) in enumerate(data):
+        colors = list(COLOR_SCHEMES["Dolphin"]) + list(COLOR_SCHEMES["Viking"])
+        cutoffs = []
+        for idx, (sort_col, name, term, color) in enumerate(data):
             df = df.sort_values(sort_col)
             iidx = int((np.nanmin(df[(df["maxpval"] > 0.05)][sort_col]) if name == "RDeeP" else df[(df["ANOSIM R"] == 1)][sort_col].max()) -1)
             print(name, iidx)
@@ -445,40 +459,43 @@ rule plotAUROC:
             a = auc(fpr,tpr)
             display_name = name + term
             print(fpr.iloc[iidx:iidx+10])
-
+            lgroup = "RBP" if term == "RNA binding" else "RDP"
             fig.add_trace(go.Scatter(
                 x=fpr,
                 y=tpr,
                 mode="lines",
                 name=name + f" AUC: {a:.3f}",
-                fill="tozeroy",
-                line=dict(color=colors[idx]),
-                legendgroup="AUC",
-                legendgrouptitle=dict(text="AUC")
+                #fill="tozeroy",
+                line=dict(color=color, dash=None if term == "RNA binding" else "dash"),
+                legendgroup=lgroup,
+                legendgrouptitle=dict(text=lgroup)
 
 
             ))
-            fig.add_trace(
+            cutoffs.append(
                 go.Scatter(
                     x=[fpr.iloc[iidx]],
                     y=[tpr.iloc[iidx]],
-                    marker=dict(size=10,color=colors[idx]),
+                    marker=dict(size=10,color=color),
                     mode="markers",
                     name=f"{name}: R=1" if name == "RAPDOR" else f"{name}: p-Value < 0.05",
                     legendgroup="Default cutoffs",
-                    legendgrouptitle=dict(text="Default cutoffs")
+                    legendgrouptitle=dict(text="Default cutoffs"),
+                    showlegend=True if idx <= 1 else False
                 )
             )
-
+        fig.add_traces(
+            cutoffs
+        )
         fig.update_layout(
             template=DEFAULT_TEMPLATE,
             legend=dict(
-                x=0,
-                y=1,
+                x=1,
+                y=0,
                 xref="paper",
                 yref="paper",
-                xanchor="left",
-                yanchor="top"
+                xanchor="right",
+                yanchor="bottom"
 
             ),
             yaxis=dict(range=[0, 1], title=dict(text="True positive rate")),
