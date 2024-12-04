@@ -257,10 +257,13 @@ rule sortAndRankRDeep:
         file = rules.originalRDeeP.output.outfile,
         rna_binding = rules.expandHumanGOTerms.output.all_terms,
         rapdor = rules.runRAPDORonRDeeP.output.tsv,
+        rapdor_json = rules.runRAPDORonRDeeP.output.json,
     output:
         file = "Pipeline/RAPDORonRDeeP/RDeePRAPDORJoined.tsv",
+        json = "Pipeline/RAPDORonRDeeP/RDeePRAPDORJoined.json"
     run:
         import numpy as np
+        from RAPDOR.datastructures import RAPDORData
         df = pd.read_csv(input.file, sep=" ")
         binding_df = pd.read_csv(input.rna_binding, sep="\t")
         rapdor_df = pd.read_csv(input.rapdor, sep="\t")
@@ -273,6 +276,10 @@ rule sortAndRankRDeep:
         print(rapdor_df)
         df = pd.merge(rapdor_df, df, how="left", left_on="RAPDORid", right_on="protein_name")
         df.to_csv(output.file, sep="\t", index=False)
+        add_cols = df[["RAPDORid","maxpval", "RDeepRank"]]
+        data = RAPDORData.from_file(input.rapdor_json)
+        data.df = data.df.merge(add_cols, on="RAPDORid")
+        data.to_json(output.json)
 
 
 
@@ -297,8 +304,8 @@ rule plotRDeePDataVennDiagram:
         rapdor_rbp = set(df[(df["ANOSIM R"] >= 1) & df["RNA binding"]]["RAPDORid"].tolist())
         colors = COLOR_SCHEMES["Dolphin"]
 
-        rdeep_tp = len(rdeep_rdp)
-        rapdor_tp = len(rapdor_rdp)
+        rdeep_tp = len(rdeep_rbp)
+        rapdor_tp = len(rapdor_rbp)
         ppv_rdeep = rdeep_tp / len(rdeep)
         ppv_rapdor = rapdor_tp / len(rapdor)
         data = {
