@@ -33,6 +33,54 @@ DEFAULT_TEMPLATE = DEFAULT_TEMPLATE.update(
 
 )
 
+rule plotIntensitiesDistribution:
+    input:
+        json = rules.run_RAPDOR.output.json
+    output:
+        html = "Pipeline/plots/IntensitiesFractionDistribution.html"
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        from plotly.subplots import make_subplots
+        import plotly.graph_objs as go
+        rapdor = RAPDORData.from_file(input.json)
+        array = np.log2(rapdor.array)
+        x = np.tile(np.arange(array.shape[-1]) + 1, array.shape[0])
+
+        fig = make_subplots(rows=array.shape[-2], cols=1)
+        for i in range(array.shape[-2]):
+            y = array[:, i, :]
+            _sum = np.log2(rapdor.array[:, i, :].sum(axis=1))
+            _sum = _sum[_sum > 0]
+            y = y.flatten()
+            indices = np.argwhere(y > 0)
+            fig.add_trace(
+                go.Box(
+                    x=x[indices].flatten(),
+                    y=y[indices].flatten(),
+                    width=0.9
+                ),
+                row=i+1,
+                col=1
+            )
+            fig.add_trace(
+                go.Box(
+                    x=x[indices].flatten(),
+                    y=y[indices].flatten(),
+                    width=0.9
+                ),
+                row=i + 1,
+                col=1
+            )
+            fig.add_trace(
+                go.Box(
+                    x=[array.shape[-1] + 1 for _ in _sum],
+                    y=_sum
+                ),
+                row=i + 1,
+                col=1
+            )
+        fig.show()
+
 
 
 rule fitMultiGaussian:
@@ -72,13 +120,18 @@ rule sampleCorrelation:
         file=rules.run_RAPDOR.output.json,
     output:
         svg = "Pipeline/plots/QC_Correlation.svg",
+        png = "Pipeline/plots/QC_Correlation.png",
+        subsetANOSIMR = "Pipeline/plots/QC_Correlation_subset_.html",
+        subset_fraction_corr = "Pipeline/plots/QC_Correlation_fractions_subset_.html",
+        subsetANOSIMRPCA = "Pipeline/plots/QC_PCA_subset_.png",
+        corr= "Pipeline/plots/QC_Correlation_onlyReplicate.svg",
+        corr_png= "Pipeline/plots/QC_Correlation_onlyReplicate.png",
+        corr_html= "Pipeline/plots/QC_Correlation_onlyReplicate.html",
+        histo = "Pipeline/plots/QC_CorrHistogram.svg",
     run:
         from RAPDOR.datastructures import RAPDORData
-        import pandas as pd
-        import math
-        from RAPDOR.plots import plot_sample_correlation, COLOR_SCHEMES
-        with open(input.file) as handle:
-            data = RAPDORData.from_json(handle.read())
+        from RAPDOR.plots import plot_sample_correlation, COLOR_SCHEMES, plot_sample_histogram, plot_sample_pca
+        data = RAPDORData.from_file(input.file)
         dolphin = list(COLOR_SCHEMES["Dolphin"])
         dolphin.insert(1, "white")
         fig = plot_sample_correlation(
@@ -93,6 +146,131 @@ rule sampleCorrelation:
         fig.update_layout(template=DEFAULT_TEMPLATE, margin=dict(b=50, l=50, r=50, t=50), height=config["QCPlot"]["A"]["height"])
         fig.update_xaxes(showticklabels=False)
         fig.write_image(output.svg)
+        fig.write_image(output.png)
+        fig = plot_sample_correlation(
+            data,
+            method="pearson",
+            summarize_fractions=True,
+            use_raw=False,
+            highlight_replicates=False,
+            ntop=None,
+            colors=dolphin
+        )
+        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=50,l=50,r=50,t=50),height=config["QCPlot"]["A"][
+            "height"])
+        fig.update_xaxes(showticklabels=False)
+        fig.write_image(output.corr)
+        fig.write_image(output.corr_png)
+        fig.write_html(output.corr_html)
+        fig = plot_sample_histogram(rapdordata=data,method="spearman",colors=COLOR_SCHEMES["Dolphin"])
+        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=70,l=70,r=100,t=100),height=config["QCPlot"]["A"][
+            "height"])
+        fig.write_image(output.histo)
+        upper_tri_indices = np.triu_indices(data.distances.shape[-1],k=1)
+        argmax = np.argmax(data.norm_array.mean(axis=-1), axis=-1)
+
+        #lala = np.nanvar(data.distances[:, upper_tri_indices[0], upper_tri_indices[1]], axis=1)
+        #top_indices = np.argsort(lala)[-100:]
+        data_df = data.df
+        new_data = RAPDORData(
+            df=data_df,
+            design=data.design,
+            logbase=2,
+        )
+        new_data.normalize_array_with_kernel(0)
+        fig = plot_sample_correlation(
+            new_data,
+            method="pearson",
+            summarize_fractions=True,
+            use_raw=True,
+            highlight_replicates=False,
+            ntop=None,
+            colors=dolphin
+        )
+        fig.write_html(output.subsetANOSIMR)
+        fig = plot_sample_correlation(
+            new_data,
+            method="pearson",
+            summarize_fractions=False,
+            use_raw=True,
+            highlight_replicates=True,
+            ntop=None,
+            colors=dolphin
+        )
+        fig.write_html(output.subset_fraction_corr)
+
+        fig = plot_sample_pca(
+            new_data,
+            plot_dims=(1, 2),
+            ntop=None,
+            summarize_fractions=True,
+            colors=COLOR_SCHEMES["Dolphin"]
+        )
+        fig.write_image(output.subsetANOSIMRPCA)
+
+
+
+
+rule QCRDeePData:
+    input:
+        rdeep = rules.runRAPDORonRDeeP.output.json,
+    output:
+        svg = "Pipeline/plots/QC_Correlation_RDeeP.svg",
+        png = "Pipeline/plots/QC_Correlation_RDeeP.png",
+        corr = "Pipeline/plots/QC_Correlation_onlyReplicate_RDeeP.svg",
+        corr_png = "Pipeline/plots/QC_Correlation_onlyReplicate_RDeeP.png",
+        histo = "Pipeline/plots/QC_CorrHistogram_RDeeP.svg",
+        pca = "Pipeline/plots/QC_PCA_RDeeP.svg",
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        from RAPDOR.plots import plot_sample_correlation, COLOR_SCHEMES, plot_sample_histogram, plot_sample_pca
+
+        data = RAPDORData.from_file(input.rdeep)
+        dolphin = list(COLOR_SCHEMES["Dolphin"])
+        dolphin.insert(1,"white")
+        fig = plot_sample_correlation(
+            data,
+            method="pearson",
+            summarize_fractions=False,
+            use_raw=False,
+            highlight_replicates=False,
+            ntop=None,
+            colors=dolphin
+        )
+        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=50,l=50,r=50,t=50),height=config["QCPlot"]["A"][
+            "height"])
+        fig.update_xaxes(showticklabels=False)
+        fig.write_image(output.svg)
+        fig.write_image(output.png)
+        fig = plot_sample_histogram(rapdordata=data,method="spearman",colors=COLOR_SCHEMES["Dolphin"])
+        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=70,l=70,r=100,t=100),height=config["QCPlot"]["A"][
+            "height"])
+        fig.write_image(output.histo)
+        fig = plot_sample_histogram(rapdordata=data,method="spearman", colors=COLOR_SCHEMES["Dolphin"])
+        fig.update_layout(template=DEFAULT_TEMPLATE, margin=dict(b=70, l=70, r=100, t=100), height=config["QCPlot"]["A"]["height"])
+        fig.write_image(output.histo)
+        fig = plot_sample_pca(data, plot_dims=(1, 2),ntop=0.2, summarize_fractions=True, colors=COLOR_SCHEMES["Dolphin"])
+        fig.update_layout(
+            template=DEFAULT_TEMPLATE,
+            margin=dict(b=50,l=70,r=200,t=20),
+            height=config["QCPlot"]["B"]["height"])
+        fig.write_image(output.pca)
+        fig = plot_sample_correlation(
+            data,
+            method="pearson",
+            summarize_fractions=True,
+            use_raw=False,
+            highlight_replicates=False,
+            ntop=None,
+            colors=dolphin
+        )
+        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=50,l=50,r=50,t=50),height=config["QCPlot"]["A"][
+            "height"])
+        fig.update_xaxes(showticklabels=False)
+        fig.write_image(output.corr)
+        fig.write_image(output.corr_png)
+
+
 
 
 rule joinAnalysisMethods:

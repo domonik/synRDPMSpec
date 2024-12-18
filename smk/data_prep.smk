@@ -183,15 +183,54 @@ rule prepareSalmonellaData:
         design.to_csv(output.file2, sep="\t", index=False)
 
 
-rule prepareinitialData:
+rule preprocessIntensities:
     input:
         file = config["intensities"],
+        design = config["design"]
+    output:
+        tsv = "Pipeline/VSNNorm/intensities_for_normalization.tsv"
+    run:
+        df = pd.read_csv(input.file, sep="\t")
+        design = pd.read_csv(input.design, sep="\t")
+        df = df[["id"] + design.Name.tolist()]
+        df.to_csv(output.tsv, index=False, sep="\t")
+
+rule normalizeUsingVSN:
+    input:
+        tsv = rules.preprocessIntensities.output.tsv
+    output:
+        normalized = "Pipeline/VSNNorm/intensities_normalized.tsv",
+        imputed = "Pipeline/VSNNorm/intensities_normalized_imputed.tsv",
+    conda: "../envs/DAPAR.yml"
+    script: "../Rscripts/vsnNormalize.R"
+
+rule replaceWithNormalizedIntensites:
+    input:
+        intensities = config["intensities"],
+        tsv = rules.normalizeUsingVSN.output.imputed
+    output:
+        tsv = "Pipeline/VSNNorm/intensities_normalized_replaced.tsv"
+    run:
+        df = pd.read_csv(input.intensities, sep="\t")
+        norm = pd.read_csv(input.tsv, sep="\t")
+        norm.columns = norm.columns.str.replace("_", "-")
+        df = df.merge(norm, left_on="id", right_index=True, suffixes=("_delete", ""))
+        df = df[[col for col in df.columns if  "_delete" not in col]]
+        df = df[[col for col in df.columns if  "_delete" not in col]]
+        df.to_csv(output.tsv, index=False, sep="\t")
+
+
+
+rule prepareinitialData:
+    input:
+        #file = config["intensities"],
+        file = rules.replaceWithNormalizedIntensites.output.tsv,
         design = config["design"],
         uniprot = "Data/GOAnno.tsv",
         go_binders = rules.extractGORNABinding.output.file
     output:
-        sanitized_df = "Pipeline/sanitized_df.tsv",
-        design = "Pipeline/sanitized_design.tsv"
+        sanitized_df = "Pipeline/RAPDORAnalysis/sanitized_df.tsv",
+        design = "Pipeline/RAPDORAnalysis/sanitized_design.tsv"
     run:
         import pandas as pd
         go_table = pd.read_csv(input.go_binders, sep="\t")

@@ -1,0 +1,12 @@
+channels:
+ - conda-forge
+ - bioconda
+dependencies:
+ - conda-forge::r-biocmanager
+ - libxml2
+ - gcc
+ - libcurl
+ - libcxx
+ - libgcc
+ - conda-forge::r-ncdf4
+ - conda-forge::r-curl

@@ -8,7 +8,12 @@ include: "smk/runRAPDORonRDeePData.smk"
 rule all:
     input:
         rdeep =  rules.runRDeep.output,
+        #intensities =  rules.plotIntensitiesDistribution.output,
         rdpmspec = rules.plotMeanDistribution.output,
+        normalized = rules.replaceWithNormalizedIntensites.output,
+        corr = rules.sampleCorrelation.output,
+        qcRDeeP = rules.QCRDeePData.output,
+        rapdor = rules.run_RAPDOR.output,
         qc = rules.joinQCPlot.output,
         rdeeprapdor = rules.runRAPDORonRDeeP.output,
         rdeeporiginal = rules.plotRDeePRHistogram.output,
