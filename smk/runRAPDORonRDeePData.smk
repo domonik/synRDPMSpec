@@ -287,14 +287,16 @@ rule plotRDeePDataVennDiagram:
     input:
         rapdorfile = rules.sortAndRankRDeep.output.file
     output:
-        svg = "Pipeline/RAPDORonRDeeP/Plots/VennDiagramAll.svg",
-        tsv = "Pipeline/RAPDORonRDeeP/Summary/Performance.tsv",
+        json_all = "Pipeline/RAPDORonRDeeP/Plots/VennDiagramAll.json",
+        json_rbp = "Pipeline/RAPDORonRDeeP/Plots/VennDiagramRBP.json",
+        json_rdp = "Pipeline/RAPDORonRDeeP/Plots/VennDiagramRDP.json",
     run:
         from pyfunctions.plotlyVenn import venn_to_plotly
         from RAPDOR.plots import COLOR_SCHEMES
         import plotly.graph_objs as go
         import plotly.subplots as sp
         import string
+        import plotly.io
         df = pd.read_csv(input.rapdorfile, sep="\t")
         rdeep = set(df[df["RDeePSignificant"]]["RAPDORid"].tolist())
         rdeep_rdp = set(df[df["RDeePSignificant"] & df["RNA binding or complex"]]["RAPDORid"].tolist())
@@ -304,106 +306,98 @@ rule plotRDeePDataVennDiagram:
         rapdor_rbp = set(df[(df["ANOSIM R"] >= 1) & df["RNA binding"]]["RAPDORid"].tolist())
         colors = COLOR_SCHEMES["Dolphin"]
 
-        rdeep_tp = len(rdeep_rbp)
-        rapdor_tp = len(rapdor_rbp)
-        ppv_rdeep = rdeep_tp / len(rdeep)
-        ppv_rapdor = rapdor_tp / len(rapdor)
-        data = {
-            "Tool": ["RDeeP", "RAPDOR"],
-            "True positives": [rdeep_tp, rapdor_tp],
-            "False positives": [len(rdeep)- rdeep_tp, len(rapdor)-rapdor_tp],
-            "Positive predictive value": [ppv_rdeep, ppv_rapdor]
-        }
-        df = pd.DataFrame(data)
-        df.to_csv(output.tsv, sep="\t", index=False)
-
         fig1 = venn_to_plotly(L_sets=(rapdor, rdeep), L_labels=("RAPDOR", "RDeeP"), L_color=colors)
+        plotly.io.write_json(fig1, output.json_all)
         fig2 = venn_to_plotly(L_sets=(rapdor_rbp, rdeep_rbp), L_labels=("RAPDOR", "RDeeP"), L_color=colors)
+        plotly.io.write_json(fig2, output.json_rbp)
+
         fig3 = venn_to_plotly(L_sets=(rapdor_rdp, rdeep_rdp), L_labels=("RAPDOR", "RDeeP"), L_color=colors)
-        multi_fig = sp.make_subplots(rows=1,cols=3, horizontal_spacing=0.01)
-        annos = string.ascii_uppercase
-
-        for idx, (name, fig) in enumerate([("All", fig1), ("RNA binding proteins", fig2), ("RNA dependent proteins", fig3)], 1):
-            fig.update_layout(
-                xaxis=dict(showgrid=False,zeroline=False,showline=False),
-                yaxis=dict(showgrid=False,zeroline=False,showline=False)
-            )
-            for iidx, shape in enumerate(fig['layout']['shapes']):
-                shape["xref"] = f"x{idx}" if idx > 1 else "x"
-                shape["yref"] = f"y{idx}" if idx > 1 else "y"
-                multi_fig.add_shape(shape)
-                color = shape["fillcolor"]
-                if idx == 1 and color != "rgba(255,0,0,0)":
-                    multi_fig.add_trace(
-                        go.Scatter(
-                            x=[None],
-                            y=[None],
-                            mode="markers",
-                            name=fig['layout']['annotations'][iidx]["text"],
-                            marker=dict(
-                                color=color,
-                                size=900,
-                                # line=dict(
-                                #     color="black",
-                                #     width=3
-                                # ),
-                            ),
-                            showlegend=True
-
-                        )
-                    )
-            for annotation in fig['layout']['annotations'][2:]:
-                if annotation["xref"] == "x":
-                    annotation["xref"] = f"x{idx}" if idx > 1 else "x"
-                    annotation["yref"] = f"y{idx}" if idx > 1 else "y"
-                else:
-                    annotation["xref"] = f"x{idx} domain" if idx > 1 else "x domain"
-                    annotation["yref"] = f"y{idx} domain" if idx > 1 else "y domain"
-                multi_fig.add_annotation(annotation)
-
-            multi_fig.add_annotation(
-                text=f"{name}",
-                xref=f"x{idx} domain" if idx > 1 else "x domain",
-                xanchor="center",
-                x=0.5,
-                yref=f"y{idx} domain" if idx > 1 else "y domain",
-                yanchor="bottom",
-                y=0,
-                font=dict(size=12),
-                showarrow=False
-
-            )
-
-            multi_fig.update_xaxes(fig["layout"]["xaxis"],row=1,col=idx)
-            multi_fig.update_yaxes(fig["layout"]["yaxis"],row=1,col=idx)
-            multi_fig.update_yaxes(scaleanchor="x" if idx == 1 else f"x{idx}",scaleratio=1,col=idx)
-
-        multi_fig.update_layout(template=DEFAULT_TEMPLATE)
-        multi_fig.update_layout(
-            legend={'itemsizing': 'trace', "orientation": "h", "yanchor": "bottom", "y": 1.01},
-            width=config["width"],height=300,font=config["fonts"]["legend"],
-            margin=dict(r=20, l=20, b=20, t=20)
-        )
-        for annotation in multi_fig.layout.annotations:
-            if annotation.text.startswith("<b>"):
-                pass
-            elif annotation.text.startswith("n:"):
-                annotation.update(font=config["fonts"]["annotations"])
-            else:
-                annotation.update(font=config["fonts"]["annotations"], xanchor="center", yanchor="middle")
-                if annotation.text == "0":
-                    if annotation.xref == "x":
-                        annotation.update(showarrow=True, ay=-0.5, ax=0.5, axref=annotation.xref, ayref=annotation.yref, arrowcolor='black')
-                if annotation.text == "1":
-                    if annotation.xref == "x":
-                        annotation.update(showarrow=True, ay=-0.3, ax=0.7, axref=annotation.xref, ayref=annotation.yref, arrowcolor='black')
-                if annotation.text == "4":
-                    annotation.update(x=annotation.x - 0.1, y=annotation.y - 0.1)
-                if annotation.text == "8":
-                    annotation.update(x=annotation.x + 0.05)
-                if annotation.text == "12":
-                    annotation.update(y=annotation.y + 0.05)
-        multi_fig.write_image(output.svg)
+        plotly.io.write_json(fig3, output.json_rdp)
+        #
+        # multi_fig = sp.make_subplots(rows=1,cols=3, horizontal_spacing=0.01)
+        # annos = string.ascii_uppercase
+        #
+        # for idx, (name, fig) in enumerate([("All", fig1), ("RNA binding proteins", fig2), ("RNA dependent proteins", fig3)], 1):
+        #     fig.update_layout(
+        #         xaxis=dict(showgrid=False,zeroline=False,showline=False),
+        #         yaxis=dict(showgrid=False,zeroline=False,showline=False)
+        #     )
+        #     for iidx, shape in enumerate(fig['layout']['shapes']):
+        #         shape["xref"] = f"x{idx}" if idx > 1 else "x"
+        #         shape["yref"] = f"y{idx}" if idx > 1 else "y"
+        #         multi_fig.add_shape(shape)
+        #         color = shape["fillcolor"]
+        #         if idx == 1 and color != "rgba(255,0,0,0)":
+        #             multi_fig.add_trace(
+        #                 go.Scatter(
+        #                     x=[None],
+        #                     y=[None],
+        #                     mode="markers",
+        #                     name=fig['layout']['annotations'][iidx]["text"],
+        #                     marker=dict(
+        #                         color=color,
+        #                         size=900,
+        #                         # line=dict(
+        #                         #     color="black",
+        #                         #     width=3
+        #                         # ),
+        #                     ),
+        #                     showlegend=True
+        #
+        #                 )
+        #             )
+        #     for annotation in fig['layout']['annotations'][2:]:
+        #         if annotation["xref"] == "x":
+        #             annotation["xref"] = f"x{idx}" if idx > 1 else "x"
+        #             annotation["yref"] = f"y{idx}" if idx > 1 else "y"
+        #         else:
+        #             annotation["xref"] = f"x{idx} domain" if idx > 1 else "x domain"
+        #             annotation["yref"] = f"y{idx} domain" if idx > 1 else "y domain"
+        #         multi_fig.add_annotation(annotation)
+        #
+        #     multi_fig.add_annotation(
+        #         text=f"{name}",
+        #         xref=f"x{idx} domain" if idx > 1 else "x domain",
+        #         xanchor="center",
+        #         x=0.5,
+        #         yref=f"y{idx} domain" if idx > 1 else "y domain",
+        #         yanchor="bottom",
+        #         y=0,
+        #         font=dict(size=12),
+        #         showarrow=False
+        #
+        #     )
+        #
+        #     multi_fig.update_xaxes(fig["layout"]["xaxis"],row=1,col=idx)
+        #     multi_fig.update_yaxes(fig["layout"]["yaxis"],row=1,col=idx)
+        #     multi_fig.update_yaxes(scaleanchor="x" if idx == 1 else f"x{idx}",scaleratio=1,col=idx)
+        #
+        # multi_fig.update_layout(template=DEFAULT_TEMPLATE)
+        # multi_fig.update_layout(
+        #     legend={'itemsizing': 'trace', "orientation": "h", "yanchor": "bottom", "y": 1.01},
+        #     width=config["width"],height=300,font=config["fonts"]["legend"],
+        #     margin=dict(r=20, l=20, b=20, t=20)
+        # )
+        # for annotation in multi_fig.layout.annotations:
+        #     if annotation.text.startswith("<b>"):
+        #         pass
+        #     elif annotation.text.startswith("n:"):
+        #         annotation.update(font=config["fonts"]["annotations"])
+        #     else:
+        #         annotation.update(font=config["fonts"]["annotations"], xanchor="center", yanchor="middle")
+        #         if annotation.text == "0":
+        #             if annotation.xref == "x":
+        #                 annotation.update(showarrow=True, ay=-0.5, ax=0.5, axref=annotation.xref, ayref=annotation.yref, arrowcolor='black')
+        #         if annotation.text == "1":
+        #             if annotation.xref == "x":
+        #                 annotation.update(showarrow=True, ay=-0.3, ax=0.7, axref=annotation.xref, ayref=annotation.yref, arrowcolor='black')
+        #         if annotation.text == "4":
+        #             annotation.update(x=annotation.x - 0.1, y=annotation.y - 0.1)
+        #         if annotation.text == "8":
+        #             annotation.update(x=annotation.x + 0.05)
+        #         if annotation.text == "12":
+        #             annotation.update(y=annotation.y + 0.05)
+        # multi_fig.write_image(output.svg)
 
 
 
@@ -428,19 +422,73 @@ rule plotRDeePRHistogram:
 
 
 
-rule plotAUROC:
+rule plotFigureX:
     input:
-        tsv = rules.sortAndRankRDeep.output.file
+        tsv = rules.sortAndRankRDeep.output.file,
+        json_all = rules.plotRDeePDataVennDiagram.output.json_all,
+        json_rbp = rules.plotRDeePDataVennDiagram.output.json_rbp,
+        json_rdp = rules.plotRDeePDataVennDiagram.output.json_rdp,
     output:
-        html = "Pipeline/RAPDORonRDeeP/Plots/AUROC.html",
-        svg = "Pipeline/RAPDORonRDeeP/Plots/AUROC.svg",
+        df = "Pipeline/Paper/Supplementary/Tables/SupplementaryTableX.tsv",
+        figurex = "Pipeline/Paper/FigureX.svg",
+        supplementary_figurex = "Pipeline/Paper/Supplementary/Figures/SupplementaryFigureX.svg",
     run:
         import plotly.graph_objs as go
+        import plotly.io
         from plotly.express.colors import DEFAULT_PLOTLY_COLORS
         from sklearn.metrics import auc
         from RAPDOR.plots import COLOR_SCHEMES
+        from plotly.subplots import make_subplots
 
-        fig = go.Figure()
+        multi_fig = make_subplots(rows=1, cols=3, horizontal_spacing= 0)
+        multi_fig.add_annotation(
+            text="<b>A</b>",
+            font=dict(size=config["multipanel_font_size"], family="Arial"),
+            x=0-0.1,
+            y=.99,
+            xref="paper",
+            yref="paper",
+            xanchor="left",
+            yanchor="bottom",
+            showarrow=False
+        )
+        multi_fig.add_annotation(
+            text="<b>B</b>",
+            font=dict(size=config["multipanel_font_size"], family="Arial"),
+            x=1/3+0.02,
+            y=.99,
+            xref="paper",
+            yref="paper",
+            xanchor="left",
+            yanchor="bottom",
+            showarrow=False
+
+        )
+        fig2 = make_subplots(rows=1, cols=3, horizontal_spacing= 0.1)
+
+        fig2.add_annotation(
+            text="<b>A</b>",
+            font=dict(size=config["multipanel_font_size"],family="Arial"),
+            x=0 - 0.1,
+            y=.99,
+            xref="paper",
+            yref="paper",
+            xanchor="left",
+            yanchor="bottom",
+            showarrow=False
+        )
+        fig2.add_annotation(
+            text="<b>B</b>",
+            font=dict(size=config["multipanel_font_size"],family="Arial"),
+            x=2 / 3 + 0.02,
+            y=.99,
+            xref="paper",
+            yref="paper",
+            xanchor="left",
+            yanchor="bottom",
+            showarrow=False
+
+        )
         df = pd.read_csv(input.tsv,sep="\t")
         data = (
             ("Rank", "RAPDOR", "RNA binding or complex", COLOR_SCHEMES["Dolphin"][0]),
@@ -450,10 +498,23 @@ rule plotAUROC:
         )
         colors = list(COLOR_SCHEMES["Dolphin"]) + list(COLOR_SCHEMES["Viking"])
         cutoffs = []
+
+        out_df = pd.DataFrame(
+            {
+                ("RBP", "AUROC"): [pd.NA, pd.NA],
+                ("RBP", "AUPRC"): [pd.NA, pd.NA],
+                ("RDP", "AUROC"): [pd.NA, pd.NA],
+                ("RDP", "AUPRC"): [pd.NA, pd.NA],
+            },
+            index=["RAPDOR", "RDeeP"]
+        )
+
+        out_df["AUROC"] = pd.NA
+        out_df["AUPRC"] = pd.NA
         for idx, (sort_col, name, term, color) in enumerate(data):
             df = df.sort_values(sort_col)
-            iidx = int((np.nanmin(df[(df["maxpval"] > 0.05)][sort_col]) if name == "RDeeP" else df[(df["ANOSIM R"] == 1)][sort_col].max()) -1)
-            print(name, iidx)
+            #iidx = int((np.nanmin(df[(df["maxpval"] > 0.05)][sort_col]) if name == "RDeeP" else df[(df["ANOSIM R"] == 1)][sort_col].max()) -1)
+            #print(name, iidx)
             p = np.sum(df[term])
             n = np.sum(~(df[term].astype(bool)))
 
@@ -463,52 +524,154 @@ rule plotAUROC:
             fp = np.cumsum(~(df[term].astype(bool)))
             tpr = tp / p
             fpr = fp / n
-            a = auc(fpr,tpr)
+            precision = tp / (tp + fp)
+            auroc = auc(fpr,tpr)
+            auprc = auc(tpr, precision)
             display_name = name + term
-            print(fpr.iloc[iidx:iidx+10])
             lgroup = "RBP" if term == "RNA binding" else "RDP"
-            fig.add_trace(go.Scatter(
-                x=fpr,
-                y=tpr,
-                mode="lines",
-                name=name + f" AUC: {a:.3f}",
-                #fill="tozeroy",
-                line=dict(color=color, dash=None if term == "RNA binding" else "dash"),
-                legendgroup=lgroup,
-                legendgrouptitle=dict(text=lgroup)
+            out_df.loc[name, (lgroup, "AUROC")] = auroc
+            out_df.loc[name, (lgroup, "AUPRC")] = auprc
+            if lgroup == "RBP":
+                multi_fig.add_trace(go.Scatter(x=[None],y=[None],mode="markers",marker=dict(color=color),name=name, showlegend=True))
+
+                multi_fig.add_trace(go.Scatter(
+                    x=fpr,
+                    y=tpr,
+                    mode="lines",
+                    name=name + f" AUC: {auroc:.3f}",
+                    #fill="tozeroy",
+                    line=dict(color=color, dash=None if term == "RNA binding" else "dash"),
+                    showlegend=False,
+
+                    hovertext=df[sort_col]
 
 
-            ))
-            cutoffs.append(
-                go.Scatter(
-                    x=[fpr.iloc[iidx]],
-                    y=[tpr.iloc[iidx]],
-                    marker=dict(size=10,color=color),
-                    mode="markers",
-                    name=f"{name}: R=1" if name == "RAPDOR" else f"{name}: p-Value < 0.05",
-                    legendgroup="Default cutoffs",
-                    legendgrouptitle=dict(text="Default cutoffs"),
-                    showlegend=True if idx <= 1 else False
+                ))
+                multi_fig.add_annotation(
+                    text=f"AUC: {auroc:.3f}",
+                    font=dict(color=color),
+                    x=0.45 if name == "RAPDOR" else 0.35,
+                    y=0.8 if name == "RAPDOR" else 0.5,
+                    xref="x domain",
+                    yref="y domain",
+                    xanchor="right" if name == "RAPDOR" else "left",
+                    yanchor="middle",
+                    showarrow=False
+
                 )
+            if lgroup == "RDP":
+                fig2.add_trace(
+                    go.Scatter(
+                        x=fpr,
+                        y=tpr,
+                        mode="lines",
+                        name=name,
+                        # fill="tozeroy",
+                        line=dict(color=color,dash=None if term == "RNA binding" else "dash"),
+                        showlegend=False,
+                        hovertext=df[sort_col],
+
+                    ), col=1, row=1
+                )
+            fig2.add_trace(
+                go.Scatter(
+                    x=tpr,
+                    y=precision,
+                    mode="lines",
+                    name=name,
+                    # fill="tozeroy",
+                    line=dict(color=color, dash=None if term == "RNA binding" else "dash"),
+                    showlegend=False,
+
+                    hovertext=df[sort_col],
+
+                ),col=2,row=1
             )
-        fig.add_traces(
-            cutoffs
-        )
-        fig.update_layout(
+        fig2.add_trace(go.Scatter(x=[None], y=[None], mode="lines", line=dict(color="black", dash=None), name="RBP"))
+        fig2.add_trace(go.Scatter(x=[None], y=[None], mode="lines", line=dict(color="black", dash="dash"), name="RDP"))
+        fig2.add_trace(go.Scatter(x=[None], y=[None], mode="markers", marker=dict(color=colors[0]), name="RAPDOR"))
+        fig2.add_trace(go.Scatter(x=[None], y=[None], mode="markers", marker=dict(color=colors[1]), name="RDeeP"))
+
+        all_fig = plotly.io.read_json(input.json_all)
+        rbp_fig = plotly.io.read_json(input.json_rbp)
+        rdp_fig = plotly.io.read_json(input.json_rdp)
+
+        for idx, (name, fig) in enumerate([("All", all_fig), ("RBP", rbp_fig), ("RDP", rdp_fig)], 1):
+            if name == "RDP":
+                ref_fig = fig2
+                col=3
+            else:
+                ref_fig = multi_fig
+                col = 2 if name == "All" else 3
+            fig.update_layout(
+                xaxis=dict(showgrid=False,zeroline=False,showline=False),
+                yaxis=dict(showgrid=False,zeroline=False,showline=False)
+            )
+            for iidx, shape in enumerate(fig['layout']['shapes']):
+                shape["xref"] = f"x{col}"
+                shape["yref"] = f"y{col}"
+                ref_fig.add_shape(shape)
+                color = shape["fillcolor"]
+
+            for annotation in fig['layout']['annotations'][2:]:
+                if annotation["xref"] == "x":
+                    annotation["xref"] = f"x{col}"
+                    annotation["yref"] = f"y{col}"
+                else:
+                    annotation["xref"] = f"x{col} domain"
+                    annotation["yref"] = f"y{col} domain"
+                ref_fig.add_annotation(annotation)
+
+            ref_fig.add_annotation(
+                text=f"{name}",
+                xref=f"x{col} domain",
+                xanchor="center",
+                x=0.5,
+                yref=f"y{col} domain",
+                yanchor="bottom",
+                y=0,
+                font=dict(size=12),
+                showarrow=False
+
+            )
+
+            ref_fig.update_xaxes(fig["layout"]["xaxis"],row=1,col=col)
+            ref_fig.update_yaxes(fig["layout"]["yaxis"],row=1,col=col)
+            ref_fig.update_yaxes(scaleanchor=f"x{col}",scaleratio=1,col=col)
+
+
+
+        multi_fig.update_layout(
             template=DEFAULT_TEMPLATE,
             legend=dict(
-                x=1,
+                x=0.5,
                 y=0,
-                xref="paper",
-                yref="paper",
-                xanchor="right",
-                yanchor="bottom"
+                xref="container",
+                yref="container",
+                xanchor="center",
+                yanchor="bottom",
+                orientation="h"
 
             ),
             yaxis=dict(range=[0, 1], title=dict(text="True positive rate")),
             xaxis=dict(range=[0, 1], title=dict(text="False positive rate")),
             width=config["width"],
-            height=400,
+            margin=config["margin"],
+            height=300,
         )
-        fig.write_html(output.html)
-        fig.write_image(output.svg)
+        title_standoff = 3
+        fig2.update_layout(
+            template=DEFAULT_TEMPLATE,
+            legend=dict(orientation="h", y=0.99, yref="container", yanchor="top"),
+            yaxis=dict(range=[0, 1], title=dict(text="True positive rate"), title_standoff = title_standoff),
+            xaxis=dict(range=[0, 1], title=dict(text="False positive rate"),),
+            width=config["width"],
+            margin=config["margin"],
+            height=250,
+        )
+        fig2.update_xaxes(title="True positive rate", col=2, row=1)
+        fig2.update_yaxes(title="Positive predictive value ", title_standoff = title_standoff, col=2, row=1)
+
+        fig2.write_image(output.supplementary_figurex)
+        multi_fig.write_image(output.figurex)
+        out_df.to_csv(output.df, sep="\t")

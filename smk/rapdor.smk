@@ -57,22 +57,7 @@ rule run_RAPDOR:
     threads: 999
     benchmark:
         repeat("Pipeline/benchmarks/rapdorBenchmark.csv", config["benchmark_repeats"])
-    run:
-        from RAPDOR.datastructures import RAPDORData
-        from multiprocessing import set_start_method
-        set_start_method("spawn", force=True)
-        import pandas as pd
-
-        df = pd.read_csv(input.intensities, sep="\t")
-        design = pd.read_csv(input.design, sep="\t")
-        rbpmdata = RAPDORData(df=df, design=design, logbase=2)
-        rbpmdata.normalize_and_get_distances(method="Jensen-Shannon-Distance", kernel=3)
-        rbpmdata.calc_all_scores()
-        rbpmdata.rank_table(["ANOSIM R", "Mean Distance"], ascending=(False, False))
-        rbpmdata.calc_anosim_p_value(999, threads=threads, mode="global")
-        rbpmdata.to_json(output.json)
-        rbpmdata.export_csv(output.tsv, sep="\t")
-        del rbpmdata
+    script: "../pyfunctions/runRAPDOR.py"
 
 
 rule runIdentifierOnSalmonella:

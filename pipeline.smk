@@ -9,6 +9,7 @@ rule all:
     input:
         rdeep =  rules.runRDeep.output,
         #intensities =  rules.plotIntensitiesDistribution.output,
+        correlation = rules.plotJSDMScoreCorrelation.output,
         rdpmspec = rules.plotMeanDistribution.output,
         normalized = rules.replaceWithNormalizedIntensites.output,
         corr = rules.sampleCorrelation.output,
@@ -17,7 +18,7 @@ rule all:
         qc = rules.joinQCPlot.output,
         rdeeprapdor = rules.runRAPDORonRDeeP.output,
         rdeeporiginal = rules.plotRDeePRHistogram.output,
-        humango = rules.plotAUROC.output,
+        humango = rules.plotFigureX.output,
         plotRDeePDataVennDiagram = rules.plotRDeePDataVennDiagram.output,
         #p = rules.plotBarcodePlot.output,
         #df = rules.prepareinitialData.output,

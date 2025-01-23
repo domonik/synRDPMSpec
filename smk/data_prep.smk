@@ -207,7 +207,7 @@ rule normalizeUsingVSN:
 rule replaceWithNormalizedIntensites:
     input:
         intensities = config["intensities"],
-        tsv = rules.normalizeUsingVSN.output.imputed
+        tsv = rules.normalizeUsingVSN.output.normalized
     output:
         tsv = "Pipeline/VSNNorm/intensities_normalized_replaced.tsv"
     run:
@@ -223,8 +223,7 @@ rule replaceWithNormalizedIntensites:
 
 rule prepareinitialData:
     input:
-        #file = config["intensities"],
-        file = rules.replaceWithNormalizedIntensites.output.tsv,
+        file = config["intensities"],
         design = config["design"],
         uniprot = "Data/GOAnno.tsv",
         go_binders = rules.extractGORNABinding.output.file

@@ -149,7 +149,7 @@ rule sampleCorrelation:
         fig.write_image(output.png)
         fig = plot_sample_correlation(
             data,
-            method="pearson",
+            method="spearman",
             summarize_fractions=True,
             use_raw=False,
             highlight_replicates=False,
@@ -729,7 +729,7 @@ rule plotBarcodePlot:
         #df = df[df["ribosomal protein"] == True]
         df = df.sort_values(by="Rank", ascending=True)
         df = df[~df["ANOSIM R"].isna()]
-        x = list(range(df["Rank"].min(), df.Rank.max()+1))
+        x = list(range(int(df["Rank"].min()), int(df.Rank.max())+1))
         small_subunit = df[df["small_ribosomal"] == True]["RAPDORid"]
         large_subunit = df[df["large_ribosomal"] == True]["RAPDORid"]
         photosystem = df[df["photosystem"] == True]["RAPDORid"]
@@ -1499,6 +1499,7 @@ rule plotANOSIMRDistribution:
                 bins=np.linspace(-1, 1, int(np.floor(2/0.01)))
             )
             y = y / np.sum(y)
+            percentile = np.nanquantile(distribution, 0.95)
 
             fig.add_trace(go.Bar(
                 x=x,
@@ -1509,7 +1510,11 @@ rule plotANOSIMRDistribution:
                     color=DEFAULT_COLORS[0],
                 ),
             ), row=plot_id+1, col=1)
-
+            fig.add_vline(
+                x=percentile,
+                annotation_text=f"{percentile}:3f",
+                row=plot_id + 1,col=1
+            )
             y, x = np.histogram(
                 original_dist,
                 bins=np.linspace(-1,1,int(np.floor(2 / 0.01)))
@@ -1544,13 +1549,14 @@ rule calcMobilityScore:
     input:
         json = rules.anosimEGF.output.json,
     output:
-        json = "Pipeline/Paper/Supplementary/JSON/HeLaEGFTreatment_{experiment}.json"
+        json = "Pipeline/Paper/Supplementary/JSON/HeLaEGFTreatment_{experiment}.json",
     run:
         from RAPDOR.datastructures import RAPDORData
         import numpy as np
         from scipy.stats import combine_pvalues
         from scipy.stats import  ttest_ind
         from statsmodels.stats.multitest import multipletests
+        import plotly.graph_objs as go
 
         data = RAPDORData.from_file(input.json)
         print(data.norm_array.shape)
@@ -1564,6 +1570,63 @@ rule calcMobilityScore:
         data.df["max treat"] = max_treat
         data.df["mobility score"] = mobility
         data.to_json(output.json)
+
+
+rule plotJSDMScoreCorrelation:
+    input:
+        jsons = expand(rules.calcMobilityScore.output.json, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)])
+    output:
+        svg = "Pipeline/Paper/Supplementary/Figures/MobilityVsJSDHeLaEGFTreatment.svg"
+    run:
+        import plotly.graph_objs as go
+        from RAPDOR.datastructures import RAPDORData
+        from RAPDOR.plots import _color_to_calpha
+        from plotly.subplots import make_subplots
+        from scipy.stats import pearsonr
+        import numpy as np
+        rows = cols = 2
+        titles = [f"{x} min" for x in (2, 8, 20, 90)]
+        color = _color_to_calpha(DEFAULT_COLORS[0],0.3)
+
+        fig = make_subplots(rows =rows, cols = cols, y_title="Mobility Score", x_title="Jensen-Shannon Distance", subplot_titles=titles, vertical_spacing=0.15)
+        for idx, data in enumerate(input.jsons):
+            data = RAPDORData.from_file(data)
+            x = data.df["Mean Distance"]
+            y = data.df["mobility score"]
+            corr, pval = pearsonr(x, y)
+            row = idx // cols
+            col = idx % cols
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    showlegend=False,
+                    mode="markers",
+                    marker=dict(color=color),
+
+                ),
+                row=row+1, col=col+1
+            )
+            domain = str(idx+1) if idx > 0 else ""
+            fig.add_annotation(
+                text=f"Pearson R: {corr:.2f}",
+                x=1,
+                y=0,
+                xref=f"x{domain} domain",
+                yref=f"y{domain} domain",
+                xanchor="right",
+                yanchor="bottom",
+                showarrow=False,
+                bgcolor="#dbdbdb",
+                borderpad=4,
+
+            )
+        fig.update_layout(template=DEFAULT_TEMPLATE)
+        fig.update_layout(
+            width=config["width"],
+            height=config["height"]
+        )
+        fig.write_image(output.svg)
 
 rule prepareForLimma:
     input:
@@ -1697,7 +1760,8 @@ rule plotEGFHeLa:
         dist_svg = "Pipeline/Paper/Subfigures/HeLaPlotDistribution.svg",
     run:
         from RAPDOR.datastructures import RAPDORData
-        from RAPDOR.plots import plot_protein_distributions
+        from RAPDOR.plots import plot_protein_distributions, _color_to_calpha
+        from pyfunctions.plotlyVenn import venn_to_plotly
         import plotly.graph_objs as go
         from plotly.subplots import make_subplots
         novel = ["PRELID1", "CHUK", "RNF220", "ELL2", "GRB2", "SHC1", "CBL"]
@@ -1707,22 +1771,32 @@ rule plotEGFHeLa:
             2: ["MYH10", "CHUK", "BDP1", "PWWP3A", "WRAP73", "NBEAL1", "MAEA", "PYROXD2", "TEDC1", "CSNK1G2", "SIRT7", "RNF220", "CES3", "FIG4", "GORASP2", "ACP6", "FAM208B", "UNC80", "NDUFA11"],
             3: ["EGR1", "P3H4", "GATAD2B", "NSMCE3", "IRF2BP2", "MBNL1", "RBM7", "CD276"]
         }
-        rows = 2
+        rows = 4
         cols = 2
         titles = [f"{x} min" for x in (2, 8, 20, 90)]
-        fig = make_subplots(rows =rows, cols = cols, y_title="log<sub>10</sub>(p-value)", x_title="Jensen-Shannon Distance", subplot_titles=titles, vertical_spacing=0.15)
+        fig = make_subplots(
+            rows =rows,
+            cols = cols,
+            y_title="log<sub>10</sub>(p-value)",
+            column_titles=["Jensen-Shannon Distance", "Venn"],
+            row_titles=titles,
+            vertical_spacing=0.05,
+            horizontal_spacing=0.05,
+            column_widths=[0.7, 0.3]
+        )
         dreg = []
 
         for idx, data in enumerate(input.jsons):
             row = idx // cols
             col = idx % cols
+            plot_ref = (idx + 1) * 2 - 1
+
             data = RAPDORData.from_file(data)
             found = identified[idx] if idx in identified else novel
             f  = data.df["Gene.names"].isin(found)
             check = list(data.df[f]["Gene.names"])
 
             df = data.df
-            print(df["global ANOSIM adj p-Value"])
             df["-log10(p-value)"] = -1 * np.log10(df["global ANOSIM adj p-Value"])
             difreg = df[(df["global ANOSIM adj p-Value"] <= 0.05) & (df["Mean Distance"] >= 0.2)]
             difreg = set(difreg["Gene.names"])
@@ -1736,28 +1810,65 @@ rule plotEGFHeLa:
                 raise ValueError
             fig.add_trace(
                 go.Scatter(
-                    y=data.df[~f]["-log10(p-value)"],
-                    x=data.df[~f]["Mean Distance"],
+                    y=data.df[~f & (data.df["-log10(p-value)"] > 1)]["-log10(p-value)"],
+                    x=data.df[~f & (data.df["-log10(p-value)"] > 1)]["Mean Distance"],
                     mode="markers",
                     text=data.df[~f]["Gene.names"], marker=dict(color=DEFAULT_COLORS[0]),
-                    showlegend=False
-                ), row = row+1, col=col+1
+                    showlegend=True if idx == 0 else False,
+                    name="RAPDOR p-value \u2265 0.05",
+
+                ), row = idx+1, col=1
             )
+            ccolor = _color_to_calpha(DEFAULT_COLORS[0], 0.3)
+            fig.add_trace(
+                go.Scatter(
+                    y=data.df[~f & (data.df["-log10(p-value)"] <= 1)]["-log10(p-value)"],
+                    x=data.df[~f & (data.df["-log10(p-value)"] <= 1)]["Mean Distance"],
+                    mode="markers",
+                    text=data.df[~f]["Gene.names"],marker=dict(color=ccolor),
+                    showlegend=True if idx == 0 else False,
+                    name="RAPDOR p-value < 0.05",
+
+                ),row=idx + 1,col=1
+            )
+
             fig.add_trace(
                 go.Scatter(
                     y=data.df[f]["-log10(p-value)"],
                     x=data.df[f]["Mean Distance"],
                     mode="markers",
                     name="shift in Martinez-Val et al.",
-                    showlegend=False,
+                    showlegend=True if idx == 0 else False,
                     text=data.df[f]["Gene.names"],marker=dict(color=DEFAULT_COLORS[1])
-                ),row=row + 1,col=col + 1
+                ),row=idx + 1,col=1
             )
             fig.add_hline(
                 y=-1 * np.log10(0.1),
-                row=row+1, col=col+1, line=dict(dash='dot')
+                row=idx+1, col=1, line=dict(dash='dot')
             )
-            highlight = {"ITSN1": (0.11, 0.7), "MITF": (0., 1.45), "FOXJ3": (0.5, 0.6)} if idx > 1 else {"ITSN1":(0, 1.2) , "MITF": (0., 1.4), "FOXJ3": (0.2, 1.55),  "GRB2": (.5, .6), "CBL": (.15, .7), "SHC1":(0.12, 0.9) }
+            rapdor_identifed = set(data.df[data.df["-log10(p-value)"] > 1]["RAPDORid"].tolist())
+            original_identifed = set(data.df[f]["RAPDORid"].tolist())
+            venn = venn_to_plotly(L_sets=(rapdor_identifed, original_identifed), L_labels=("RAPDOR", "Martinez-Val et. al"), L_color=DEFAULT_COLORS)
+            for iidx, shape in enumerate(venn['layout']['shapes']):
+                shape["xref"] = f"x{plot_ref+1}"
+                shape["yref"] = f"y{plot_ref+1}"
+                fig.add_shape(shape)
+            for annotation in venn['layout']['annotations'][2:]:
+                if annotation["xref"] == "x":
+                    annotation["xref"] = f"x{plot_ref+1}"
+                    annotation["yref"] = f"y{plot_ref+1}"
+                else:
+                    annotation["xref"] = f"x{plot_ref+1} domain"
+                    annotation["yref"] = f"y{plot_ref+1} domain"
+                fig.add_annotation(annotation)
+
+
+            fig.update_xaxes(venn["layout"]["xaxis"],row=idx+1,col=2)
+            fig.update_yaxes(venn["layout"]["yaxis"],row=idx+1,col=2)
+            fig.update_yaxes(scaleanchor=f"x{plot_ref+1}",scaleratio=1,col=2, row=idx+1)
+            #fig.update_xaxes(scaleanchor=f"y{plot_ref+1}", scaleratio=1,col=2, row=idx+1)
+
+            highlight = {"ITSN1": (0.11, 0.7), "MITF": (0., 1.45), "FOXJ3": (0.5, 0.6)} if idx > 1 else {"ITSN1":(0, 1.1) , "MITF": (0., 1.4), "FOXJ3": (0.2, 1.55),  "GRB2": (.5, .6), "CBL": (.2, .55), "SHC1":(0.12, 0.8) }
             if idx == 3:
                 highlight["ITSN1"] = (0.11, 0.3)
                 highlight["FOXJ3"] = (0.5, 1.35)
@@ -1773,12 +1884,12 @@ rule plotEGFHeLa:
                     xanchor="center",
                     yanchor="middle",
                     showarrow=True,
-                    xref="x" if idx == 0 else f"x{idx + 1}",
-                    yref="y" if idx == 0 else f"y{idx + 1}",
+                    xref="x" if idx == 0 else f"x{plot_ref}",
+                    yref="y" if idx == 0 else f"y{plot_ref}",
                     ax=ax,
                     ay=ay,
-                    axref="x" if idx == 0 else f"x{idx + 1}",
-                    ayref="y" if idx == 0 else f"y{idx + 1}",
+                    axref="x" if idx == 0 else f"x{plot_ref}",
+                    ayref="y" if idx == 0 else f"y{plot_ref}",
 
                 )
                 fig.add_annotation(
@@ -1794,7 +1905,7 @@ rule plotEGFHeLa:
         dist_fig.data[3].update(showlegend=False)
         dist_fig.data[0].update(name="Control")
         dist_fig.data[2].update(name="EGF")
-        dist_fig.update_traces(marker=dict(size=10),selector=dict(mode='markers'))
+        dist_fig.update_traces(marker=dict(size=5),selector=dict(mode='markers'))
         # dist_fig.update_layout(
         #     barmode="overlay",
         #     bargroupgap=0,
@@ -1805,36 +1916,55 @@ rule plotEGFHeLa:
         #     ticktext=[val.replace(" ", "<br>").replace("<br>&<br>", " &<br>") for val in data.fractions],
         #     tickmode="array"
         # )
-        fig.data[1].update(showlegend=True)
         fig.update_layout(
             legend=dict(
                 orientation="h",
-                # x=0.1,
-                # y=0.1,
-                # xref="container",
-                # yref="container",
-                # xanchor="left",
-                # yanchor="bottom"
+                x=0.1,
+                y=0,
+                xref="container",
+                yref="container",
+                xanchor="left",
+                yanchor="bottom",
             )
         )
-        dist_fig.update_layout(template=DEFAULT_TEMPLATE)
+        dist_fig.update_layout(
+            template=DEFAULT_TEMPLATE,
+            legend=dict(
+                orientation="h",
+                x=0.1,
+                y=0,
+                xref="container",
+                yref="container",
+                xanchor="left",
+                yanchor="bottom",
+            )
+        )
         dist_fig.update_layout(width=config["width"])
-        dist_fig.update_layout(height=config["height"])
+        dist_fig.update_layout(height=config["HeLaPlot"]["B"]["height"])
         dist_fig.update_layout(margin=config["margin"])
 
         fig.update_layout(template=DEFAULT_TEMPLATE)
         fig.update_layout(width=config["width"])
-        fig.update_layout(height=config["height"])
+        fig.update_layout(height=config["HeLaPlot"]["A"]["height"])
         fig.update_layout(margin=config["margin"])
+
         fig.update_annotations(
             dict(font=config["fonts"]["axis"])
+        )
+        fig.update_xaxes(
+            showgrid=False, zeroline=False, showline=False,
+            col=2
+        )
+        fig.update_yaxes(
+            showgrid=False,zeroline=False, showline=False,
+            col=2
         )
         dist_fig.update_annotations(
             dict(font=config["fonts"]["axis"])
         )
         dist_fig.update_layout(font=config["fonts"]["default"], legend=dict(font=config["fonts"]["legend"], title=None))
         dist_fig.update_layout(margin=config["margin"])
-        dist_fig.update_layout(margin=dict(b=70))
+        dist_fig.update_layout(margin=dict(b=10, t=10))
         for annotation in dist_fig.layout.annotations:
             if annotation.text == "Fraction":
                 annotation.update(y=annotation.y - 0.04)
@@ -1853,8 +1983,8 @@ rule joinHeLaPlot:
     run:
         from svgutils.compose import Figure, Panel, SVG, Text
 
-        b_y = config["height"]
-        ges_y = b_y + config["height"]
+        b_y = config["HeLaPlot"]["A"]["height"]
+        ges_y = b_y + config["HeLaPlot"]["B"]["height"]
         f = Figure("624px",f"{ges_y}px",
             Panel(
                 SVG(input.svg1),

@@ -10,3 +10,4 @@ dependencies:
  - libgcc
  - conda-forge::r-ncdf4
  - conda-forge::r-curl
+
