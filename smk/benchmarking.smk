@@ -2,10 +2,12 @@
 
 rule meanRuntimeAndRAM:
     input:
-        file = rules.run_RAPDOR.benchmark,
+        file = rules.run_RAPDORForBenchmark.benchmark,
         synthetic = rules.run_on_synthetic_data.benchmark,
         anosim = rules.ANOSIM_on_synthetic_data.benchmark,
-        rdeep = rules.runRDeep.benchmark
+        rdeep = rules.runRDeep.benchmark,
+        rdeeporiginal = rules.originalRDeeP.benchmark,
+        rapdorOnRdeep = rules.runRAPDORonRDeeP.benchmark,
     output:
         file ="Pipeline/benchmarks/meanStats.tsv"
     run:
@@ -15,7 +17,9 @@ rule meanRuntimeAndRAM:
             "RealData": (input.file, 3, False),
             "SyntheticData": (input.synthetic, 9, False),
             "SyntheticAnsoim": (input.anosim, 9, True),
-            "RdeepData": (input.rdeep, 3, False)
+            "RdeepData": (input.rdeep, 3, False),
+            "RDeePonRDeeP": (input.rdeeporiginal, 3, False),
+            "RAPDORonRDeeP": (input.rapdorOnRdeep, 3, False),
         }
         dfs = []
         for key, (file, replicates, anosim) in d.items():
@@ -25,7 +29,8 @@ rule meanRuntimeAndRAM:
                 quantile = np.quantile(df[["s", "max_uss"]], q=q, axis=0)
                 stats[f"q{q}_s"] = quantile[0]
                 stats[f"q{q}_max_uss"] = quantile[1]
-            stats["Tool"] = "RAPDOR" if key != "RdeepData" else "RDeeP"
+            stats["Tool"] = "RAPDOR" if key not in ("RdeepData", "RDeePonRDeeP") else "R-DeeP"
+            stats["dataset"] = "Synechocystis GradR" if key not in ("RAPDORonRDeeP", "RDeePonRDeeP") else "HeLa R-DeeP"
             stats["stdev_s"] = np.std(df["s"])
             stats["stdev_max_uss"] = np.std(df["max_uss"])
             stats["ANOSIM"] =  anosim

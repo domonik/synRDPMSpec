@@ -88,7 +88,7 @@ rule processRNABinding:
         binding = set(binding["old_locus_tag"].unique().tolist())
         uniprot = pd.read_csv(input.uniprot,sep="\t")
         string = pd.read_csv(input.string, sep=" ", compression="gzip")
-        string = string[string["combined_score"] >= 400]
+        string = string[string["combined_score"] >= 700]
         mapping = uniprot[["Entry", "STRING"]]
         mapping["STRING"] = mapping["STRING"].str.split(";").str[0]
         string = string.merge(mapping, left_on='protein1', right_on='STRING', )
@@ -183,7 +183,12 @@ rule originalRDeeP:
         file = rules.fixDataLayout.output.rdeep_input,
     output:
         outfile = "Pipeline/RAPDORonRDeeP/OriginalRDeePAnalysis.csv",
+        outfile2 = "Pipeline/RAPDORonRDeeP/OriginalRDeePAnalysisCTRLTable.csv",
+        outfile3 = "Pipeline/RAPDORonRDeeP/OriginalRDeePAnalysisRNaseTable.csv",
         normalized_counts = "Pipeline/RAPDORonRDeeP/OriginalRDeePNormalizedCounts.tsv",
+    threads: 999
+    benchmark:
+        repeat("Pipeline/benchmarks/RDeePOriginalBenchmark.csv", config["benchmark_repeats"])
     conda: "../envs/rdeep.yml"
     script: "../Rscripts/OriginalRDeeP.R"
 
@@ -216,16 +221,17 @@ rule runRAPDORonRDeeP:
         design = rules.fixDataLayout.output.design,
         rdeeP_data = rules.originalRDeeP.output.outfile
     output:
-        json = "Pipeline/RAPDORonRDeeP/RDeePRAPDOR.json",
+        json = "Pipeline/Paper/Supplementary/JSON/RDeePRAPDOR.json",
         tsv = "Pipeline/RAPDORonRDeeP/RDeePRAPDOR.tsv",
         RDistribution = "Pipeline/RAPDORonRDeeP/RDeePRAPDORDistribution.npy",
-    threads: 8
+    threads: 999
+    benchmark:
+        repeat("Pipeline/benchmarks/RAPDORonRDeePBenchmark.csv", config["benchmark_repeats"])
     run:
         from RAPDOR.datastructures import RAPDORData
         import pandas as pd
         from multiprocessing import set_start_method
         set_start_method("spawn", force=True)
-
         df = pd.read_csv(input.intensities,sep="\t")
         rdeep_df = pd.read_csv(input.rdeeP_data, sep=" ")
         rdeep_filter = ~(
@@ -240,7 +246,7 @@ rule runRAPDORonRDeeP:
         rbpmdata.normalize_and_get_distances(method="Jensen-Shannon-Distance", kernel=3)
         rbpmdata.calc_all_scores()
         rbpmdata.rank_table(["ANOSIM R", "Mean Distance"],ascending=(False, False))
-        _, distribution = rbpmdata.calc_anosim_p_value(permutations=-1, mode="global", threads=threads)
+        _, distribution = rbpmdata.calc_anosim_p_value(permutations=-1, mode="global", threads=1)
         indices = rbpmdata.df[rbpmdata.df["min replicates per group"] == 3]["id"].to_numpy()
         distribution = distribution[:, indices].flatten()
         with open(output.RDistribution, "wb") as handle:
@@ -276,11 +282,60 @@ rule sortAndRankRDeep:
         print(rapdor_df)
         df = pd.merge(rapdor_df, df, how="left", left_on="RAPDORid", right_on="protein_name")
         df.to_csv(output.file, sep="\t", index=False)
-        add_cols = df[["RAPDORid","maxpval", "RDeepRank"]]
+        add_cols = df[["RAPDORid","maxpval", "RDeepRank", "pb_fit", "rnase_peak", "ctrl_peak"]]
         data = RAPDORData.from_file(input.rapdor_json)
         data.df = data.df.merge(add_cols, on="RAPDORid")
         data.to_json(output.json)
 
+
+rule plotComparisonExample:
+    input:
+        rapdor = rules.sortAndRankRDeep.output.json
+    output:
+        svg = "Pipeline/RAPDORonRDeeP/Plots/ComparisonExample.svg",
+        html = "Pipeline/RAPDORonRDeeP/Plots/ComparisonExample.html"
+    run:
+        from RAPDOR.datastructures import RAPDORData
+        from RAPDOR.plots import plot_protein_distributions, COLOR_SCHEMES
+        colors = COLOR_SCHEMES["Dolphin"]
+        data = RAPDORData.from_file(input.rapdor)
+        data.df["Protein"] = data.df["RAPDORid"].str.split("_HUMAN").str[0]
+        ids = ["NHP2_HUMAN", "EF2_HUMAN", "TIM50_HUMAN"]
+        fig = plot_protein_distributions(
+            ids,
+            data,
+            colors=COLOR_SCHEMES["Dolphin"],
+            title_col="Protein",
+            vertical_spacing=0.05
+        )
+        for idx, name in enumerate(ids):
+            sdf = data.df[data.df["RAPDORid"] == name]
+            if name != "TIM50_HUMAN":
+                fig.add_vline(
+                    x=sdf["rnase_peak"].iloc[0],
+                    line=dict(color=colors[1]),
+                    row=idx+1,
+                    col=1
+                )
+            fig.add_vline(
+                x=sdf["ctrl_peak"].iloc[0],
+                line=dict(color=colors[0]),
+                row=idx+1,
+                col=1
+            )
+        fig.update_layout(
+            template=DEFAULT_TEMPLATE,
+            width=config["width"],
+            height=config["FR1"]["C"]["height"],
+        )
+        fig.update_annotations(font=config["fonts"]["annotations"])
+        fig.update_legends(
+            font=config["fonts"]["legend"]
+        )
+        fig.write_image(
+            output.svg
+        )
+        fig.write_html(output.html)
 
 
 rule plotRDeePDataVennDiagram:
@@ -421,7 +476,6 @@ rule plotRDeePRHistogram:
 
 
 
-
 rule plotFigureX:
     input:
         tsv = rules.sortAndRankRDeep.output.file,
@@ -430,8 +484,9 @@ rule plotFigureX:
         json_rdp = rules.plotRDeePDataVennDiagram.output.json_rdp,
     output:
         df = "Pipeline/Paper/Supplementary/Tables/SupplementaryTableX.tsv",
-        figurex = "Pipeline/Paper/FigureX.svg",
-        supplementary_figurex = "Pipeline/Paper/Supplementary/Figures/SupplementaryFigureX.svg",
+        figurex = "Pipeline/Paper/Subfigures/FigureX.svg",
+        supplementary_figurex = "Pipeline/Paper/Supplementary/Figures/FigureS6.svg",
+
     run:
         import plotly.graph_objs as go
         import plotly.io
@@ -441,30 +496,14 @@ rule plotFigureX:
         from plotly.subplots import make_subplots
 
         multi_fig = make_subplots(rows=1, cols=3, horizontal_spacing= 0)
-        multi_fig.add_annotation(
-            text="<b>A</b>",
-            font=dict(size=config["multipanel_font_size"], family="Arial"),
-            x=0-0.1,
-            y=.99,
-            xref="paper",
-            yref="paper",
-            xanchor="left",
-            yanchor="bottom",
-            showarrow=False
+        fig2 = make_subplots(
+            rows=2, cols=3, horizontal_spacing= 0.1, vertical_spacing=0.25,
+            row_heights=[0.7, 0.3],
+            specs=[
+                [{}, {}, {}],  # Row 1: Three separate subplots
+                [{"colspan": 3, "type": "domain"}, None, None]  # Row 2: One table spanning all 3 columns
+            ],
         )
-        multi_fig.add_annotation(
-            text="<b>B</b>",
-            font=dict(size=config["multipanel_font_size"], family="Arial"),
-            x=1/3+0.02,
-            y=.99,
-            xref="paper",
-            yref="paper",
-            xanchor="left",
-            yanchor="bottom",
-            showarrow=False
-
-        )
-        fig2 = make_subplots(rows=1, cols=3, horizontal_spacing= 0.1)
 
         fig2.add_annotation(
             text="<b>A</b>",
@@ -482,6 +521,18 @@ rule plotFigureX:
             font=dict(size=config["multipanel_font_size"],family="Arial"),
             x=2 / 3 + 0.02,
             y=.99,
+            xref="paper",
+            yref="paper",
+            xanchor="left",
+            yanchor="bottom",
+            showarrow=False
+
+        )
+        fig2.add_annotation(
+            text="<b>C</b>",
+            font=dict(size=config["multipanel_font_size"],family="Arial"),
+            x=0 - 0.1,
+            y=.25,
             xref="paper",
             yref="paper",
             xanchor="left",
@@ -509,8 +560,8 @@ rule plotFigureX:
             index=["RAPDOR", "RDeeP"]
         )
 
-        out_df["AUROC"] = pd.NA
-        out_df["AUPRC"] = pd.NA
+        #out_df["AUROC"] = pd.NA
+        #out_df["AUPRC"] = pd.NA
         for idx, (sort_col, name, term, color) in enumerate(data):
             df = df.sort_values(sort_col)
             #iidx = int((np.nanmin(df[(df["maxpval"] > 0.05)][sort_col]) if name == "RDeeP" else df[(df["ANOSIM R"] == 1)][sort_col].max()) -1)
@@ -638,7 +689,13 @@ rule plotFigureX:
             ref_fig.update_xaxes(fig["layout"]["xaxis"],row=1,col=col)
             ref_fig.update_yaxes(fig["layout"]["yaxis"],row=1,col=col)
             ref_fig.update_yaxes(scaleanchor=f"x{col}",scaleratio=1,col=col)
-
+        table = go.Table(
+            header=dict(values=["Tool"] + ["-".join(i) for i in out_df.columns]),
+            cells=dict(values=[out_df.index.tolist()] + [out_df[col].astype(float).round(2) for col in out_df.columns])
+        )
+        fig2.add_trace(
+            table, row=2, col=1
+        )
 
 
         multi_fig.update_layout(
@@ -657,7 +714,7 @@ rule plotFigureX:
             xaxis=dict(range=[0, 1], title=dict(text="False positive rate")),
             width=config["width"],
             margin=config["margin"],
-            height=300,
+            height=config["FR1"]["AB"]["height"],
         )
         title_standoff = 3
         fig2.update_layout(
@@ -667,11 +724,40 @@ rule plotFigureX:
             xaxis=dict(range=[0, 1], title=dict(text="False positive rate"),),
             width=config["width"],
             margin=config["margin"],
-            height=250,
+            height=400,
         )
         fig2.update_xaxes(title="True positive rate", col=2, row=1)
         fig2.update_yaxes(title="Positive predictive value ", title_standoff = title_standoff, col=2, row=1)
-
         fig2.write_image(output.supplementary_figurex)
         multi_fig.write_image(output.figurex)
         out_df.to_csv(output.df, sep="\t")
+
+
+rule plotFigureR1:
+    input:
+        ab = rules.plotFigureX.output.figurex,
+        c = rules.plotComparisonExample.output.svg
+    output:
+        svg = "Pipeline/Paper/Figure5.svg"
+    run:
+        from svgutils.compose import Figure, Panel, SVG, Text
+
+        c_y = config["FR1"]["C"]["height"]
+        ges_y = c_y + config["FR1"]["AB"]["height"]
+        letter_b_x = config["width"] // 3 + 50
+        f = Figure("624px",f"{ges_y}px",
+            Panel(
+                SVG(input.ab),
+                Text("A",2,15,size=config["multipanel_font_size"],weight='bold',font="Arial"),
+                Text("B",letter_b_x,15,size=config["multipanel_font_size"],weight='bold',font="Arial")
+            ),
+            Panel(
+                SVG(input.c),
+                Text("C",2,2,size=config["multipanel_font_size"],weight='bold',font="Arial")
+            ).move(0,c_y),
+        )
+        svg_string = f.tostr()
+        svg_string = svg_string.decode().replace("encoding='ASCII'","encoding='utf-8'")
+        with open(output.svg,"w") as handle:
+            handle.write(svg_string)
+

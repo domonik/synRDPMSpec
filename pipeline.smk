@@ -1,9 +1,8 @@
-
+include: "smk/runRAPDORonRDeePData.smk"
 include: "smk/rdeep.smk"
 include: "smk/rapdor.smk"
 include: "smk/data_prep.smk"
 include: "smk/postProcessingAndPlots.smk"
-include: "smk/runRAPDORonRDeePData.smk"
 
 rule all:
     input:
@@ -15,6 +14,7 @@ rule all:
         corr = rules.sampleCorrelation.output,
         qcRDeeP = rules.QCRDeePData.output,
         rapdor = rules.run_RAPDOR.output,
+        figureR1 = rules.plotFigureR1.output,
         qc = rules.joinQCPlot.output,
         rdeeprapdor = rules.runRAPDORonRDeeP.output,
         rdeeporiginal = rules.plotRDeePRHistogram.output,
@@ -30,7 +30,7 @@ rule all:
         fig5 = rules.createFigure5.output,
         fig4 = rules.plotAllVenns.output,
         table1 = rules.createTable1andTableS1.output,
-        figs2 = rules.plotConditionedSynechochoColdRibo.output,
+        subf6 = rules.plotFigureX.output,
         #rdeep_rapdor = rules.runRAPDORonRDeePNorm.output,
         rpla = rules.combineFigure3.output,
         #fig = rules.plotSpearmans.output,

@@ -111,8 +111,10 @@ rule pca:
         fig = plot_sample_pca(data, plot_dims=(1, 2), ntop=0.2, summarize_fractions=True, colors=dolphin)
         fig.update_layout(
             template=DEFAULT_TEMPLATE,
-            margin=dict(b=50, l=70, r=200, t=20),
-            height=config["QCPlot"]["B"]["height"])
+            margin=dict(b=50, l=30, r=30, t=20),
+            height=config["QCPlot"]["B"]["height"],
+            width=config["width"] // 2
+        )
         fig.write_image(output.svg)
 
 rule sampleCorrelation:
@@ -121,9 +123,6 @@ rule sampleCorrelation:
     output:
         svg = "Pipeline/plots/QC_Correlation.svg",
         png = "Pipeline/plots/QC_Correlation.png",
-        subsetANOSIMR = "Pipeline/plots/QC_Correlation_subset_.html",
-        subset_fraction_corr = "Pipeline/plots/QC_Correlation_fractions_subset_.html",
-        subsetANOSIMRPCA = "Pipeline/plots/QC_PCA_subset_.png",
         corr= "Pipeline/plots/QC_Correlation_onlyReplicate.svg",
         corr_png= "Pipeline/plots/QC_Correlation_onlyReplicate.png",
         corr_html= "Pipeline/plots/QC_Correlation_onlyReplicate.html",
@@ -153,61 +152,33 @@ rule sampleCorrelation:
             summarize_fractions=True,
             use_raw=False,
             highlight_replicates=False,
+            show_values=True,
             ntop=None,
             colors=dolphin
         )
-        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=50,l=50,r=50,t=50),height=config["QCPlot"]["A"][
-            "height"])
-        fig.update_xaxes(showticklabels=False)
+        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=70,l=25,r=50,t=25),
+            height=config["QCPlot"]["A"]["height"],
+            width=config["width"] // 2,
+        )
+        fig.update_yaxes(showticklabels=False)
         fig.write_image(output.corr)
         fig.write_image(output.corr_png)
         fig.write_html(output.corr_html)
         fig = plot_sample_histogram(rapdordata=data,method="spearman",colors=COLOR_SCHEMES["Dolphin"])
-        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=70,l=70,r=100,t=100),height=config["QCPlot"]["A"][
-            "height"])
+        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=50,l=70,r=100,t=60),
+            height=config["QCPlot"]["C"]["height"],
+            width=config["width"],
+        )
+        fig.update_annotations(font=config["fonts"]["annotations"])
         fig.write_image(output.histo)
-        upper_tri_indices = np.triu_indices(data.distances.shape[-1],k=1)
-        argmax = np.argmax(data.norm_array.mean(axis=-1), axis=-1)
 
-        #lala = np.nanvar(data.distances[:, upper_tri_indices[0], upper_tri_indices[1]], axis=1)
-        #top_indices = np.argsort(lala)[-100:]
-        data_df = data.df
-        new_data = RAPDORData(
-            df=data_df,
-            design=data.design,
-            logbase=2,
-        )
-        new_data.normalize_array_with_kernel(0)
-        fig = plot_sample_correlation(
-            new_data,
-            method="pearson",
-            summarize_fractions=True,
-            use_raw=True,
-            highlight_replicates=False,
-            ntop=None,
-            colors=dolphin
-        )
-        fig.write_html(output.subsetANOSIMR)
-        fig = plot_sample_correlation(
-            new_data,
-            method="pearson",
-            summarize_fractions=False,
-            use_raw=True,
-            highlight_replicates=True,
-            ntop=None,
-            colors=dolphin
-        )
-        fig.write_html(output.subset_fraction_corr)
 
-        fig = plot_sample_pca(
-            new_data,
-            plot_dims=(1, 2),
-            ntop=None,
-            summarize_fractions=True,
-            colors=COLOR_SCHEMES["Dolphin"]
-        )
-        fig.write_image(output.subsetANOSIMRPCA)
-
+rule plotSumofIntensities:
+    input:
+        json = rules.run_RAPDOR.output.json,
+    output:
+        html = "Pipeline/plots/SumOfIntensities.html"
+    script: "../pyfunctions/sumOfIntensities.py"
 
 
 
@@ -246,26 +217,28 @@ rule QCRDeePData:
         fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=70,l=70,r=100,t=100),height=config["QCPlot"]["A"][
             "height"])
         fig.write_image(output.histo)
-        fig = plot_sample_histogram(rapdordata=data,method="spearman", colors=COLOR_SCHEMES["Dolphin"])
-        fig.update_layout(template=DEFAULT_TEMPLATE, margin=dict(b=70, l=70, r=100, t=100), height=config["QCPlot"]["A"]["height"])
-        fig.write_image(output.histo)
         fig = plot_sample_pca(data, plot_dims=(1, 2),ntop=0.2, summarize_fractions=True, colors=COLOR_SCHEMES["Dolphin"])
         fig.update_layout(
             template=DEFAULT_TEMPLATE,
             margin=dict(b=50,l=70,r=200,t=20),
-            height=config["QCPlot"]["B"]["height"])
+            height=config["QCPlot"]["B"]["height"],
+            width=config["width"]
+        )
         fig.write_image(output.pca)
         fig = plot_sample_correlation(
             data,
-            method="pearson",
+            method="spearman",
             summarize_fractions=True,
             use_raw=False,
             highlight_replicates=False,
+            show_values=True,
             ntop=None,
             colors=dolphin
         )
-        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=50,l=50,r=50,t=50),height=config["QCPlot"]["A"][
-            "height"])
+        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=50,l=50,r=50,t=50),
+            height=config["QCPlot"]["A"]["height"],
+            width=config["width"] // 2
+        )
         fig.update_xaxes(showticklabels=False)
         fig.write_image(output.corr)
         fig.write_image(output.corr_png)
@@ -630,7 +603,7 @@ rule plotTopHitDistributions:
         with open(input.json) as handle:
             rapdor_data = RAPDORData.from_json(handle.read())
         df = rapdor_data.df
-        topids = df[df["old_locus_tag"].isin(dist_config["locus_tags"])]
+        topids = df[df["old_locus_tag"].isin(dist_config["locus_tags"] )]
         topids = topids.sort_values(["Rank"])
         topids = topids["RAPDORid"]
         fig = plot_protein_distributions(
@@ -858,7 +831,7 @@ rule plotRuntime:
         all_benchmark = rules.meanRuntimeAndRAM.output.file
     output:
         html = "Pipeline/Paper/Supplementary/Figures/html/benchmark.html",
-        svg = "Pipeline/Paper/Supplementary/Figures/FigureS5.svg"
+        svg = "Pipeline/Paper/Supplementary/Figures/FigureS7.svg"
     run:
         import plotly.graph_objs as go
         import plotly.express as px
@@ -868,101 +841,117 @@ rule plotRuntime:
 
         annos = string.ascii_uppercase
         df = pd.read_csv(input.all_benchmark, sep="\t")
-        fig = sp.make_subplots(rows=1,cols=2, x_title="Replicates per group", horizontal_spacing=0.2)
+        datasets = ["Synechocystis GradR", "HeLa R-DeeP"]
+        fig = sp.make_subplots(rows=2,cols=2,
+            x_title="Replicates per group",
+            horizontal_spacing=0.025,
+            vertical_spacing=0.05,
+            column_titles=datasets,
+            shared_yaxes=True,
+        )
         names = ["s", "max_uss"]
+        df["Replicates per group"] = df["Replicates per group"].astype(str)
         for col in range(1, 3):
-            name = names[col-1]
+            ds = datasets[col-1]
+            sdf = df[df["dataset"] == ds]
+            for row in range(1, 3):
+                name = names[row-1]
 
-            fig.add_trace(
-                go.Bar(
-                    x=df[(df["Tool"] == "RDeeP")]["Replicates per group"],
-                    y=df[(df["Tool"] == "RDeeP")][name],
-                    error_y=dict(
-                        type='data',# value of error bar given in data coordinates
-                        array=df[(df["Tool"] == "RDeeP")][f"stdev_{name}"],
-                        visible=True,
-                        color="black"
+                fig.add_trace(
+                    go.Bar(
+                        x=sdf[(sdf["Tool"] == "R-DeeP")]["Replicates per group"],
+                        y=sdf[(sdf["Tool"] == "R-DeeP")][name],
+                        error_y=dict(
+                            type='data',# value of error bar given in data coordinates
+                            array=sdf[(sdf["Tool"] == "R-DeeP")][f"stdev_{name}"],
+                            visible=True,
+                            color="black"
+                        ),
+                        legendgroup="R-DeeP",
+                        legendgrouptitle=dict(text="R-DeeP"),
+                        name="R-DeeP",
+                        marker_color=COLOR_SCHEMES["Viking"][0],
+                        marker_line=dict(width=2,color='black'),
+                        showlegend=True if row == 1 and col == 1 else False,
+
                     ),
-                    legendgroup="RDeeP",
-                    legendgrouptitle=dict(text="RDeeP"),
-                    name="RDeeP",
-                    marker_color=COLOR_SCHEMES["Viking"][0],
-                    marker_line=dict(width=2,color='black'),
-                    showlegend=True if col == 1 else False,
-
-                ),
-                col=col, row=1
-            )
+                    col=col, row=row
+                )
 
 
-            fig.add_trace(
-                go.Bar(
-                    x=df[(df["ANOSIM"] == False) & (df["Tool"] == "RAPDOR")]["Replicates per group"],
-                    y=df[(df["ANOSIM"] == False) & (df["Tool"] == "RAPDOR")][name],
-                    error_y=dict(
-                        type='data',# value of error bar given in data coordinates
-                        array=df[(df["ANOSIM"] == False) & (df["Tool"] == "RAPDOR")][f"stdev_{name}"],
-                        visible=True,
-                        color="black"
+                fig.add_trace(
+                    go.Bar(
+                        x=sdf[(sdf["ANOSIM"] == False) & (sdf["Tool"] == "RAPDOR")]["Replicates per group"],
+                        y=sdf[(sdf["ANOSIM"] == False) & (sdf["Tool"] == "RAPDOR")][name],
+                        error_y=dict(
+                            type='data',# value of error bar given in data coordinates
+                            array=sdf[(sdf["ANOSIM"] == False) & (df["Tool"] == "RAPDOR")][f"stdev_{name}"],
+                            visible=True,
+                            color="black"
+                        ),
+
+                        legendgroup="RAPDOR",
+                        legendgrouptitle=dict(text="RAPDOR"),
+                        marker_color=COLOR_SCHEMES["Dolphin"][0],
+                        marker_line=dict(width=2,color='black'),
+                        showlegend=True if row == 1 and col == 1 else False,
+
+
+                        name="Ranking"
                     ),
+                    col=col, row=row
+                )
+                fig.add_trace(
+                    go.Bar(
+                        x=sdf[(sdf["ANOSIM"] == True) & (sdf["Tool"] == "RAPDOR")]["Replicates per group"],
+                        y=sdf[(sdf["ANOSIM"] == True) & (sdf["Tool"] == "RAPDOR")][name],
+                        error_y=dict(
+                            type='data',# value of error bar given in data coordinates
+                            array=sdf[(sdf["ANOSIM"] == True) & (sdf["Tool"] == "RAPDOR")][f"stdev_{name}"],
+                            visible=True,
+                            color="black"
+                        ),
+                        legendgroup="RAPDOR",
+                        legendgrouptitle=dict(text="RAPDOR"),
+                        marker_color=COLOR_SCHEMES["Dolphin"][1],
+                        marker_line=dict(width=2,color='black'),
+                        showlegend=True if row == 1 and col == 1 else False,
 
-                    legendgroup="RAPDOR",
-                    legendgrouptitle=dict(text="RAPDOR"),
-                    marker_color=COLOR_SCHEMES["Dolphin"][0],
-                    marker_line=dict(width=2,color='black'),
-                    showlegend=True if col == 1 else False,
 
-
-                    name="Ranking"
-                ),
-                col=col, row=1
-            )
-            fig.add_trace(
-                go.Bar(
-                    x=df[(df["ANOSIM"] == True) & (df["Tool"] == "RAPDOR")]["Replicates per group"],
-                    y=df[(df["ANOSIM"] == True) & (df["Tool"] == "RAPDOR")][name],
-                    error_y=dict(
-                        type='data',# value of error bar given in data coordinates
-                        array=df[(df["ANOSIM"] == True) & (df["Tool"] == "RAPDOR")][f"stdev_{name}"],
-                        visible=True,
-                        color="black"
+                        name="ANOSIM"
                     ),
-                    legendgroup="RAPDOR",
-                    legendgrouptitle=dict(text="RAPDOR"),
-                    marker_color=COLOR_SCHEMES["Dolphin"][1],
-                    marker_line=dict(width=2,color='black'),
-                    showlegend=True if col == 1 else False,
+                    col=col,row=row
 
-
-                    name="ANOSIM"
-                ),
-                col=col,row=1
-
-            )
-            fig.add_annotation(
-                text=f"<b>{annos[col - 1]}</b>",
-                xref=f"x{col} domain" if col > 1 else "x domain",
-                xanchor="left",
-                x=-0.4,
-                yref=f"y{col} domain" if col > 1 else "y domain",
-                yanchor="top",
-                y=1.1,
-                font=dict(size=config["multipanel_font_size"]),
-                showarrow=False
-
-            )
+                )
+                # fig.add_annotation(
+                #     text=f"<b>{annos[col - 1]}</b>",
+                #     xref=f"x{col} domain" if col > 1 else "x domain",
+                #     xanchor="left",
+                #     x=-0.4,
+                #     yref=f"y{col} domain" if col > 1 else "y domain",
+                #     yanchor="top",
+                #     y=1.1,
+                #     font=dict(size=config["multipanel_font_size"]),
+                #     showarrow=False
+                #
+                # )
 
         fig.update_layout(template=DEFAULT_TEMPLATE, width=config["width"], height=300,
             margin=config["margin"]
 
         )
-        fig.update_yaxes(type="log", title=dict(text="Average Runtime [s]"), col=1)
-        fig.update_yaxes(title=dict(text="Memory [Mb]"), col=2)
-        fig.layout.annotations[0].update(
+        fig.update_yaxes(type="log", row=1)
+        fig.update_yaxes(title=dict(text="Average Runtime [s]"), row=1, col=1)
+        fig.update_yaxes(title=dict(text="Memory [Mb]"), row=2, col=1)
+        fig.update_annotations(
             dict(font=config["fonts"]["axis"])
         )
 
-        fig.update_xaxes(type='linear')
+        #fig.update_xaxes(type='linear')
+        #fig.update_xaxes(col=2, range=(3-4.5, 3+4.5))
+        fig.update_layout(bargap=0.2,bargroupgap=0.1)
+        fig.update_xaxes(col=2,range=(-1.5, 1.5))
+        fig.update_xaxes(showticklabels=False, row=1)
         fig.write_image(output.svg)
         fig.write_html(output.html)
 
@@ -1008,6 +997,7 @@ rule createBubblePlot:
             legend=dict(visible=False),
             margin=config["margin"]
         )
+        fig.update_xaxes(dtick=5)
         fig.update_annotations(
             font=config["fonts"]["legend"],
         )
@@ -1061,12 +1051,15 @@ rule createBubblePlot:
             elif annotation.text == "Slr0678":
                 annotation.update(showarrow=True,ax=0,ay=-1.43,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll7087":
-                annotation.update(showarrow=True,ax=-10,ay=-1.75,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=-15,ay=-2,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "RpoC1":
                 annotation.update(showarrow=True,ax=-7,ay=-1.25,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "ChlI":
                 annotation.update(showarrow=True,ax=-19,ay=-.4,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-
+            elif annotation.text == "Ssr3189":
+                annotation.update(showarrow=True,ax=-11,ay=-1.5,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "Ssl2245":
+                annotation.update(showarrow=True,ax=-1.5,ay=1.27,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
         fig.write_image(output.svg)
         fig.write_html(output.html)
         fig.write_json(output.json)
@@ -1076,7 +1069,7 @@ rule createFigure5:
     input:
         bubble = expand(rules.createBubblePlot.output.svg, highlight="topHits")
     output:
-        svg = "Pipeline/Paper/Figure5.svg"
+        svg = "Pipeline/Paper/Figure6.svg"
     shell:
         """
         cp {input.bubble[0]} {output.svg}
@@ -1097,9 +1090,9 @@ rule plotConditionedSynechochoColdRibo:
         json = expand(rules.runOnSynData.output.json, condition="COLD")
     output:
         svg = "Pipeline/Paper/unused/FigureS2.svg",
-        svg2 = "Pipeline/Paper/Supplementary/Figures/FigureS6.svg",
-        html2 = "Pipeline/Paper/Supplementary/Figures/html/FigureS6.html",
-        tsv = "Pipeline/Paper/Supplementary/Tables/TableS6.xlsx",
+        svg2 = "Pipeline/Paper/unused/Figures/FigureS6.svg",
+        html2 = "Pipeline/Paper/unused/Figures/html/FigureS6.html",
+        tsv = "Pipeline/Paper/unused/Tables/TableS6.xlsx",
         #json = "Pipeline/Paper/Supplementary/JSON/RAPDORforSynechocystisColdShock.json",
     run:
         from RAPDOR.datastructures import RAPDORData
@@ -1364,11 +1357,9 @@ rule detectedProteinTable:
 rule calcANOSIMDistribution:
     input:
         json=rules.run_RAPDOR.output.json,
-        json_cold_shock=expand(rules.runOnSynData.output.json, condition="COLD")
 
     output:
         gradr_np="Pipeline/analyzed/ANOSIMDistributionGradR.np",
-        cold_shock_syn="Pipeline/analyzed/ANOSIMDistributionColdShock.np",
     threads: 10
     run:
         from RAPDOR.datastructures import RAPDORData
@@ -1376,11 +1367,9 @@ rule calcANOSIMDistribution:
 
         multiprocessing.set_start_method(method="spawn", force=True)
         gradr_data = input.json
-        cold = input.json_cold_shock[0]
         iter_data = [
             (gradr_data, 3, output.gradr_np),
 
-            (cold, 3, output.cold_shock_syn),
         ]
         for plot_id, data in enumerate(iter_data):
             data, samples, outfile = data
@@ -1435,21 +1424,21 @@ rule plotANOSIMRDistribution:
         rdeppdistribution = rules.runRAPDORonRDeeP.output.RDistribution,
         rdeppjson = rules.runRAPDORonRDeeP.output.json
     output:
-        svg = "Pipeline/Paper/Supplementary/Figures/FigureS4.svg",
+        svg = "Pipeline/Paper/Supplementary/Figures/FigureS5.svg",
     threads: 1
     run:
         from RAPDOR.datastructures import RAPDORData
         import plotly.graph_objs as go
         from plotly.subplots import make_subplots
-        ip_files = list(input.np) + list(input.npegf) + [input.rdeppdistribution]
-        json_files = list(input.json) + list(input.jsonegf) + [input.rdeppjson]
+        ip_files = list(input.np) + [input.rdeppdistribution] + list(input.npegf)
+        json_files = list(input.json) + [input.rdeppjson] + list(input.jsonegf)
         ip_files = zip(ip_files, json_files)
         fig = make_subplots(
             rows=len(json_files),
             shared_xaxes=True,
             x_title="ANOSIM R",
             y_title="Probability",
-            row_titles=["GradR", "Cold shock", "2 min", "8 min", "20 min", "90 min"],
+            row_titles=["GradR", "RDeeP", "2 min", "8 min", "20 min", "90 min"],
             vertical_spacing=0.02
         )
         syn_ys = [anno["y"] for anno in fig.layout.annotations[0:2]]
@@ -1458,7 +1447,7 @@ rule plotANOSIMRDistribution:
         egf_ys = [anno["y"] for anno in fig.layout.annotations[2:6]]
         egf_y = np.mean(egf_ys)
         fig.add_annotation(
-            text="Synechocystis",
+            text="GradR",
             xref="x2 domain",
             yref="paper",
             yanchor="middle",
@@ -1470,9 +1459,9 @@ rule plotANOSIMRDistribution:
             y=syn_y
         )
         x_0 = 1.1
-        fig.add_shape(type="line",
-            x0=x_0,y0=syn_ys[0] + 0.025,x1=x_0,y1=syn_ys[-1] - 0.025,xref="x2 domain",yref="paper",line_color="black"
-        )
+        # fig.add_shape(type="line",
+        #     x0=x_0,y0=syn_ys[0] + 0.025,x1=x_0,y1=syn_ys[-1] - 0.025,xref="x2 domain",yref="paper",line_color="black"
+        # )
         fig.add_annotation(
             text="HeLa EGF",
             xref="x2 domain",
@@ -1512,7 +1501,8 @@ rule plotANOSIMRDistribution:
             ), row=plot_id+1, col=1)
             fig.add_vline(
                 x=percentile,
-                annotation_text=f"{percentile}:3f",
+                annotation_text=f"{percentile:.3f}",
+                annotation_position="top left",
                 row=plot_id + 1,col=1
             )
             y, x = np.histogram(
@@ -1521,18 +1511,18 @@ rule plotANOSIMRDistribution:
             )
             y = y / np.sum(y)
 
-            fig.add_trace(go.Bar(
-                x=x,
-                y=y,
-                showlegend=False,
-                marker=dict(
-                    line=dict(color="black",width=1),
-                    color=DEFAULT_COLORS[1],
-                    opacity=0.25
-                ),
-            ),row=plot_id + 1,col=1)
+            # fig.add_trace(go.Bar(
+            #     x=x,
+            #     y=y,
+            #     showlegend=False,
+            #     marker=dict(
+            #         line=dict(color="black",width=1),
+            #         color=DEFAULT_COLORS[1],
+            #         opacity=0.25
+            #     ),
+            # ),row=plot_id + 1,col=1)
 
-
+        fig.update_xaxes(range=[-1, 1])
         fig.update_layout(template=DEFAULT_TEMPLATE)
         fig.update_layout(width=config["width"])
         fig.update_layout(height=config["height"]*1.5)
@@ -1576,7 +1566,7 @@ rule plotJSDMScoreCorrelation:
     input:
         jsons = expand(rules.calcMobilityScore.output.json, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)])
     output:
-        svg = "Pipeline/Paper/Supplementary/Figures/MobilityVsJSDHeLaEGFTreatment.svg"
+        svg = "Pipeline/Paper/Supplementary/Figures/FigureS9.svg"
     run:
         import plotly.graph_objs as go
         from RAPDOR.datastructures import RAPDORData
@@ -1778,8 +1768,6 @@ rule plotEGFHeLa:
             rows =rows,
             cols = cols,
             y_title="log<sub>10</sub>(p-value)",
-            column_titles=["Jensen-Shannon Distance", "Venn"],
-            row_titles=titles,
             vertical_spacing=0.05,
             horizontal_spacing=0.05,
             column_widths=[0.7, 0.3]
@@ -1815,7 +1803,7 @@ rule plotEGFHeLa:
                     mode="markers",
                     text=data.df[~f]["Gene.names"], marker=dict(color=DEFAULT_COLORS[0]),
                     showlegend=True if idx == 0 else False,
-                    name="RAPDOR p-value \u2265 0.05",
+                    name="RAPDOR p-value \u2264 0.1",
 
                 ), row = idx+1, col=1
             )
@@ -1827,7 +1815,7 @@ rule plotEGFHeLa:
                     mode="markers",
                     text=data.df[~f]["Gene.names"],marker=dict(color=ccolor),
                     showlegend=True if idx == 0 else False,
-                    name="RAPDOR p-value < 0.05",
+                    name="RAPDOR p-value > 0.1",
 
                 ),row=idx + 1,col=1
             )
@@ -1959,6 +1947,10 @@ rule plotEGFHeLa:
             showgrid=False,zeroline=False, showline=False,
             col=2
         )
+        fig.update_xaxes(
+            title="Jensen-Shannon distance",
+            row=4, col=1
+        )
         dist_fig.update_annotations(
             dict(font=config["fonts"]["axis"])
         )
@@ -1979,7 +1971,7 @@ rule joinHeLaPlot:
         svg1 = rules.plotEGFHeLa.output.svg,
         svg2 = rules.plotEGFHeLa.output.dist_svg,
     output:
-        svg = "Pipeline/Paper/Figure7.svg",
+        svg = "Pipeline/Paper/Figure9.svg",
     run:
         from svgutils.compose import Figure, Panel, SVG, Text
 
@@ -2224,15 +2216,17 @@ rule joinNaturePlot:
 
 rule joinQCPlot:
     input:
-        a = rules.sampleCorrelation.output.svg,
+        a = rules.sampleCorrelation.output.corr,
         b = rules.pca.output.svg,
+        c = rules.sampleCorrelation.output.histo
     output:
-        svg = "Pipeline/Paper/Supplementary/QC.svg"
+        svg = "Pipeline/Paper/Supplementary/Figures/FigureS2.svg"
     run:
         from svgutils.compose import Figure, Panel, SVG, Text
 
-        b_y = config["QCPlot"]["A"]["height"]
-        ges_y = b_y + config["QCPlot"]["B"]["height"]
+        c_y = config["QCPlot"]["A"]["height"]
+        b_x = config["width"] // 2
+        ges_y = c_y + config["QCPlot"]["C"]["height"]
         f = Figure("624px",f"{ges_y}px",
             Panel(
                 SVG(input.a),
@@ -2241,8 +2235,12 @@ rule joinQCPlot:
             ),
             Panel(
                 SVG(input.b),
-                Text("B",2,2,size=config["multipanel_font_size"],weight='bold',font="Arial")
-            ).move(0,b_y),
+                Text("B",2, 15,size=config["multipanel_font_size"],weight='bold',font="Arial")
+            ).move(b_x, 0),
+            Panel(
+                SVG(input.c),
+                Text("C",2,2,size=config["multipanel_font_size"],weight='bold',font="Arial")
+            ).move(0,c_y),
         )
         svg_string = f.tostr()
         svg_string = svg_string.decode().replace("encoding='ASCII'","encoding='utf-8'")
@@ -2292,12 +2290,12 @@ rule copySubfigures:
         s2 = "Data/Regression.svg",
         s1 = "Data/northernblot.svg",
     output:
-        s3 = "Pipeline/Paper/Supplementary/Figures/FigureS3.svg",
-        f6 = "Pipeline/Paper/Figure6.svg",
-        wf2 = "Pipeline/Paper/Figure8.svg",
+        s3 = "Pipeline/Paper/Supplementary/Figures/FigureS4.svg",
+        f6 = "Pipeline/Paper/Figure7.svg",
+        wf2 = "Pipeline/Paper/Figure10.svg",
         wf = "Pipeline/Paper/Figure2.svg",
         f1 =  "Pipeline/Paper/Figure1.svg",
-        s2 = "Pipeline/Paper/Supplementary/Figures/FigureS2.svg",
+        s2 = "Pipeline/Paper/Supplementary/Figures/FigureS3.svg",
         s1 = "Pipeline/Paper/Supplementary/Figures/FigureS1.svg",
     shell:
         """
@@ -2314,8 +2312,9 @@ rule zipSupplementaryFile1:
     input:
         stress = expand(rules.cpRedistSynecho.output.json, condition=["COLD", "HEAT", "DARK", "N", "Fe"]),
         synechorapdor = rules.postProcessRapdorData.output.file,
-        hela = expand(rules.calcMobilityScore.output.json, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)])
+        hela = expand(rules.calcMobilityScore.output.json, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
+        rdeep = rules.runRAPDORonRDeeP.output.json
     output:
         file = "Pipeline/Paper/Supplementary/SupplementaryFile1.zip"
     shell:
-        "zip -j {output.file} {input.synechorapdor} {input.stress} {input.hela}"
+        "zip -j {output.file} {input.synechorapdor} {input.stress} {input.hela} {input.rdeep}"

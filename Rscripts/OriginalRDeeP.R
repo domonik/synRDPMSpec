@@ -47,6 +47,8 @@
 # There is a header and the name of the proteins are stored in the first column. The values are separated by a ";"
 file <- snakemake@input[["file"]]
 outfile <- snakemake@output[["outfile"]]
+outfile2 <- snakemake@output[["outfile2"]]
+outfile3 <- snakemake@output[["outfile3"]]
 table <- read.table(file, header=TRUE, row.names=1, sep = ";")
 
 # Run head(table) to see the first lines of the object table.
@@ -3402,5 +3404,21 @@ sum_tab_exp[((!is.na(sum_tab_exp$ctrl_peak_amount_loss) & sum_tab_exp$ctrl_peak_
 # Remove right_shift info for non_significant gain. Just in case -> apparently there are no cases like this - therefore error message:
 # Error in `[<-.data.frame`(`*tmp*`, , c("right_shift"), value = FALSE) : replacement has 1 row, data has 0
 # sum_tab_exp[((sum_tab_exp$ctrl_peak_amount_loss <= 0)+(sum_tab_exp$rnase_peak_p_value > 0.05)) == 2,][, c("right_shift")] <- FALSE
-
 write.table(sum_tab_exp, outfile, row.names = FALSE)
+
+table_ctrl_mean[] <- lapply(table_ctrl_mean, function(col) {
+  if (is.list(col)) {
+    sapply(col, function(x) paste(x, collapse = ", "))
+  } else {
+    col
+  }
+})
+table_rnase_mean[] <- lapply(table_rnase_mean, function(col) {
+  if (is.list(col)) {
+    sapply(col, function(x) paste(x, collapse = ", "))
+  } else {
+    col
+  }
+})
+write.table(table_ctrl_mean, outfile2, row.names = TRUE)
+write.table(table_rnase_mean, outfile3, row.names = TRUE)

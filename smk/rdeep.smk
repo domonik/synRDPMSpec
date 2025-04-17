@@ -1,53 +1,53 @@
 
 include: "rapdor.smk"
 
-rule prepareForRDeep:
-    input:
-        file = config["intensities"],
-        design= config["design"],
-        rdpdata = rules.run_RAPDOR.output.json
-    output:
-        file = "Pipeline/RDeep/preparedIntensities.csv"
-    run:
-        import pandas as pd
-        from RAPDOR.datastructures import RAPDORData
-        import re
-        import numpy as np
-        df = pd.read_csv(input.file, sep="\t")
-        design = pd.read_csv(input.design, sep="\t")
-        with open(input.rdpdata) as handle:
-            rap_data = RAPDORData.from_json(handle.read())
-
-
-        df = df.loc[:, df.columns.isin(list(design.Name) + ["id"])]
-
-
-        # Define a custom sorting key
-        def custom_sort_key(column_name):
-            parts = column_name.split('-')
-            frac = int(parts[1])
-            rep = int(parts[0][-1])
-            treat = parts[0][:-1]
-            return (frac, rep, treat)
-
-
-        # Sort columns based on the custom sorting key
-        sorted_columns = sorted(df.columns[1:] ,key=custom_sort_key)
-
-        # Reorder DataFrame columns
-        df = df[["id"] + sorted_columns]
-        df.columns = ["name"] + list(df.columns[1:])
-        df.iloc[:, 1:] = np.power(2, df.iloc[:, 1:])
-        df = df.fillna(0)
-
-        df.to_csv(output.file, sep=";", index=False)
-        print(df)
+# rule prepareForRDeep:
+#     input:
+#         file = config["intensities"],
+#         design= config["design"],
+#         rdpdata = rules.run_RAPDOR.output.json
+#     output:
+#         file = "Pipeline/RDeep/preparedIntensities.csv"
+#     run:
+#         import pandas as pd
+#         from RAPDOR.datastructures import RAPDORData
+#         import re
+#         import numpy as np
+#         df = pd.read_csv(input.file, sep="\t")
+#         design = pd.read_csv(input.design, sep="\t")
+#         with open(input.rdpdata) as handle:
+#             rap_data = RAPDORData.from_json(handle.read())
+#
+#
+#         df = df.loc[:, df.columns.isin(list(design.Name) + ["id"])]
+#
+#
+#         # Define a custom sorting key
+#         def custom_sort_key(column_name):
+#             parts = column_name.split('-')
+#             frac = int(parts[1])
+#             rep = int(parts[0][-1])
+#             treat = parts[0][:-1]
+#             return (frac, rep, treat)
+#
+#
+#         # Sort columns based on the custom sorting key
+#         sorted_columns = sorted(df.columns[1:] ,key=custom_sort_key)
+#
+#         # Reorder DataFrame columns
+#         df = df[["id"] + sorted_columns]
+#         df.columns = ["name"] + list(df.columns[1:])
+#         df.iloc[:, 1:] = np.power(2, df.iloc[:, 1:])
+#         df = df.fillna(0)
+#
+#         df.to_csv(output.file, sep=";", index=False)
+#         print(df)
 
 
 
 rule runRDeep:
     input:
-        raw_masspec_rdeep = rules.prepareForRDeep.output
+        raw_masspec_rdeep = rules.exportImputedValues.output.csv
     output:
         outfile = "Pipeline/RDeep/MS_Analysis_Shifts.csv",
         normalized_counts = "Pipeline/RDeep/normalized_rdeep_counts.tsv",
