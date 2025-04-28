@@ -624,6 +624,8 @@ rule plotTopHitDistributions:
                 annotation.update(yshift=-30)
             if annotation.text == "RaiA/LrtA":
                 annotation.text = "LrtA"
+            if annotation.text == "Sll1371":
+                annotation.text = "SyCrp1"
 
         fig.update_traces(line=dict(width=2),
                 marker=dict(size=3),)
@@ -1029,7 +1031,7 @@ rule createBubblePlot:
             elif annotation.text == "Sll1388":
                 annotation.update(showarrow=True,ax=-11,ay=.9, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll1961":
-                annotation.update(showarrow=True,ax=-8.5 ,ay=.75, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+                annotation.update(showarrow=True,ax=-18.5 ,ay=.75, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Sll0921":
                 annotation.update(showarrow=True,ax=-18,ay=-1.6, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Pgm":
@@ -1060,6 +1062,14 @@ rule createBubblePlot:
                 annotation.update(showarrow=True,ax=-11,ay=-1.5,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Ssl2245":
                 annotation.update(showarrow=True,ax=-1.5,ay=1.27,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "Sll1371":
+                annotation.update(text="SyCrp1", showarrow=True,ax=-3,ay=-1.75,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "Sll1315":
+                annotation.update(showarrow=True, ax=-13,  ay=1.25,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            elif annotation.text == "Slr0670":
+                annotation.update(showarrow=True,ax=-8.5 ,ay=.75, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+        #fig.update_xaxes(range=[-6.5, -1], row=2)
+        #fig.update_yaxes(range=[-.75, .75], row=2)
         fig.write_image(output.svg)
         fig.write_html(output.html)
         fig.write_json(output.json)
