@@ -156,11 +156,56 @@ rule sampleCorrelation:
             ntop=None,
             colors=dolphin
         )
-        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=70,l=25,r=50,t=25),
+        fig.update_layout(template=DEFAULT_TEMPLATE,margin=dict(b=70,l=50,r=50,t=25),
             height=config["QCPlot"]["A"]["height"],
             width=config["width"] // 2,
         )
-        fig.update_yaxes(showticklabels=False)
+        x_vals = [trace.x for trace in fig.data if hasattr(trace,'x')][0]
+        new_ticktext = [x.split(' - ')[-1] for x in x_vals]
+        fig.update_yaxes(showticklabels=True, range=(-.5, 5.5), ticktext=new_ticktext, tickvals=x_vals, tickmode='array',)
+        fig.update_xaxes(showticklabels=True, range=(-.5, 5.5), ticktext=new_ticktext, tickvals=x_vals, tickmode='array',)
+
+        fig.update_traces(colorbar=dict(thickness=10))
+        y = -0.1
+        fig.add_shape(type="line", x0=0, x1=2, y0=y, y1=y, yref="paper", line_color="black")
+        fig.add_shape(type="line", x0=3, x1=5, y0=y, y1=y, yref="paper", line_color="black")
+        fig.add_annotation(
+            yref="paper",
+            text="Control",
+            x=1,
+            y=y,
+            yanchor="top",
+            showarrow=False
+        )
+        fig.add_annotation(
+            yref="paper",
+            text="RNase",
+            x=4,
+            y=y,
+            yanchor="top",
+            showarrow=False
+        )
+        fig.add_shape(type="line", y0=0, y1=2, x0=-0.15, x1=-0.15, xref="paper",line_color="black")
+        fig.add_shape(type="line", y0=3, y1=5, x0=-0.15, x1=-0.15, xref="paper",line_color="black")
+        fig.add_annotation(
+            xref="paper",
+            text="Control",
+            y=1,
+            x=-0.15,
+            xanchor="right",
+            showarrow=False,
+            textangle = 270
+
+        )
+        fig.add_annotation(
+            xref="paper",
+            text="RNase",
+            y=4,
+            x=-0.15,
+            xanchor="right",
+            showarrow=False,
+            textangle=270
+        )
         fig.write_image(output.corr)
         fig.write_image(output.corr_png)
         fig.write_html(output.corr_html)
@@ -1456,18 +1501,18 @@ rule plotANOSIMRDistribution:
         fig.update_layout(font=config["fonts"]["default"])
         egf_ys = [anno["y"] for anno in fig.layout.annotations[2:6]]
         egf_y = np.mean(egf_ys)
-        fig.add_annotation(
-            text="GradR",
-            xref="x2 domain",
-            yref="paper",
-            yanchor="middle",
-            xanchor="left",
-            textangle=90,
-            x=1.15,
-            font=dict(size=16,
-            ),
-            y=syn_y
-        )
+        # fig.add_annotation(
+        #     text="GradR",
+        #     xref="x2 domain",
+        #     yref="paper",
+        #     yanchor="middle",
+        #     xanchor="left",
+        #     textangle=90,
+        #     x=1.15,
+        #     font=dict(size=16,
+        #     ),
+        #     y=syn_y
+        # )
         x_0 = 1.1
         # fig.add_shape(type="line",
         #     x0=x_0,y0=syn_ys[0] + 0.025,x1=x_0,y1=syn_ys[-1] - 0.025,xref="x2 domain",yref="paper",line_color="black"
@@ -2280,11 +2325,13 @@ rule postProcessRapdorData:
     output:
         file = "Pipeline/Paper/Supplementary/JSON/synechoRAPDORGradRFile.json",
     run:
+
         from RAPDOR.datastructures import RAPDORData
         with open(input.drop) as handle:
             drop = [line.rstrip() for line in handle]
-
         data = RAPDORData.from_file(input.json)
+        data.pca()
+
         data.df = data.df.drop(drop, axis=1)
         data.to_json(output.file)
 
