@@ -640,7 +640,8 @@ rule plotTopHitDistributions:
         tophits = rules.extract_tophits.output.tsv2,
         json = rules.run_RAPDOR.output.json
     output:
-        svg = "Pipeline/Paper/Subfigures/Distribution{distribution}.svg"
+        svg = "Pipeline/Paper/Subfigures/Distribution{distribution}.svg",
+        source_data = "Pipeline/Paper/SourceData/Distributions{distribution}.tsv"
     run:
         import pandas as pd
         from RAPDOR.datastructures import RAPDORData
@@ -654,6 +655,19 @@ rule plotTopHitDistributions:
         topids = df[df["old_locus_tag"].isin(dist_config["locus_tags"] )]
         topids = topids.sort_values(["Rank"])
         topids = topids["RAPDORid"]
+
+        source_data = rapdor_data.df.loc[rapdor_data.df["RAPDORid"].isin(topids), ["Gene"]]
+        indices = source_data.index
+
+        source_data = source_data.loc[source_data.index.repeat(6)].reset_index(drop=True)
+        source_data["type"] = (["Control"] * 3 + ["RNase"] * 3) * (source_data.shape[0] // 6)
+
+        subdata = rapdor_data.norm_array[indices]
+        rsubdata = subdata.reshape(source_data.shape[0],-1)
+
+        source_data.loc[:, [f"rel. Intensity Fraction {x + 2}" for x in range(rsubdata.shape[1])]] = rsubdata
+        source_data.to_csv(output.source_data,sep="\t",index=False)
+
         fig = plot_protein_distributions(
             topids, rapdordata=rapdor_data, colors=COLOR_SCHEMES["Dolphin"],
             plot_type="zoomed", column_widths=[0.7, 0.3], horizontal_spacing=0.075, title_col="Protein name", vertical_spacing=dist_config["vertical_spacing"]
@@ -2395,8 +2409,10 @@ rule joinSourceData:
         f3c = rules.plotBarcodePlot.output.tsv,
         f5a = rules.plotFigureX.output.source_data,
         f5c = rules.plotComparisonExample.output.source_data,
+        f7 = expand(rules.plotTopHitDistributions.output.source_data, distribution=["D1"])[0],
+
     output:
-        xlsx = "Pipeline/Paper/SourceData/F3B.xlsx"
+        xlsx = "Pipeline/Paper/SourceData/SourceDataFigures.xlsx"
     run:
         import pandas as pd
         f3a = pd.read_csv(input.f3a, sep="\t")
@@ -2404,12 +2420,14 @@ rule joinSourceData:
         f3c = pd.read_csv(input.f3c, sep="\t")
         f5a = pd.read_csv(input.f5a, sep="\t")
         f5c = pd.read_csv(input.f5c, sep="\t")
+        f7 = pd.read_csv(input.f7, sep="\t")
         with pd.ExcelWriter(output.xlsx, engine="openpyxl") as writer:
             f3a.to_excel(writer,sheet_name="Figure3A",index=False)
             f3b.to_excel(writer,sheet_name="Figure3B",index=False)
             f3c.to_excel(writer,sheet_name="Figure3C",index=False)
             f5a.to_excel(writer,sheet_name="Figure5A",index=False)
             f5c.to_excel(writer,sheet_name="Figure5C",index=False)
+            f7.to_excel(writer,sheet_name="Figure7",index=False)
 
 
 rule svgsToPngs:
