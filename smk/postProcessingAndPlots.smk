@@ -511,7 +511,8 @@ rule rplaDistribution:
         ctrl_img = "Data/Westernblot_ctrl.png",
         rnase_img = "Data/Westernblot_rnase.png",
     output:
-        svg="Pipeline/Paper/Subfigures/rplAFigure.svg"
+        svg="Pipeline/Paper/Subfigures/rplAFigure.svg",
+        tsv="Pipeline/Paper/SourceData/F3A.tsv"
     run:
         from RAPDOR.datastructures import RAPDORData
         from PIL import Image
@@ -523,11 +524,13 @@ rule rplaDistribution:
             data = RAPDORData.from_json(handle.read())
         rpla = data.df[data.df["Gene"] == "rplA"]["RAPDORid"]
         subdata = data.norm_array[data[rpla][0]]
-        subdata2 = data.array[data[rpla][0]]
         row_heights = [0.8, 0.1, 0.1]
         fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.01, row_heights=row_heights)
         idesign = data.internal_design_matrix[data.internal_design_matrix["Replicate"] == "BR1"]
         fig1 = plot_distribution(subdata, data.internal_design_matrix, offset=data.state.kernel_size // 2, colors=COLOR_SCHEMES["Dolphin"], show_outliers=False)
+        source_data = pd.DataFrame({"Treatment": ["Control"] * 3 + ["RNase"] * 3, "Replicate": list(range(1, 4)) * 2 })
+        source_data.loc[:, [f"rel. Intensity Fraction {x+2}" for x in range(subdata.shape[1])]] = subdata
+        source_data.to_csv(output.tsv, sep="\t", index=False)
         #fig2 = plot_barcode_plot(subdata2, idesign, colors=COLOR_SCHEMES["Dolphin"], fractions=data.fractions, scale_max=False)
         fig.update_yaxes(fig1.layout.yaxis, row=1)
         for trace in fig1["data"]:
@@ -682,7 +685,8 @@ rule plotMeanDistribution:
     input:
         file= rules.run_RAPDOR.output.json,
     output:
-        svg="Pipeline/Paper/Subfigures/MeanDistributions.svg"
+        svg="Pipeline/Paper/Subfigures/MeanDistributions.svg",
+        tsv="Pipeline/Paper/SourceData/F3B.tsv"
     run:
         from RAPDOR.datastructures import RAPDORData
         import pandas as pd
@@ -695,6 +699,15 @@ rule plotMeanDistribution:
         ids2 = data.df[data.df["large_ribosomal"] == True]["RAPDORid"]
         ids3 = data.df[data.df["photosystem"] == True]["RAPDORid"]
         ids4 = data.df[data.df["RNA ploymerase"] == True]["RAPDORid"]
+        joined_ids = set(pd.concat([ids, ids2, ids3, ids4]).tolist())
+        source_data = data.df.loc[data.df["RAPDORid"].isin(joined_ids), ["Gene", "Mean Distance", "ANOSIM R", "small_ribosomal", "large_ribosomal", "photosystem"]]
+        indices = source_data.index
+        source_data = source_data.loc[source_data.index.repeat(2)].reset_index(drop=True)
+        source_data["type"] = ["RNase", "Control"] * (len(source_data) // 2)
+        means = data._treatment_means[:, indices]
+        means2 = means.swapaxes(0, 1).reshape(150,-1)
+        source_data.loc[:, [f"rel. Intensity Fraction {x+2}" for x in range(means2.shape[1])]] = means2
+        source_data.to_csv(output.tsv, sep="\t", index=False)
         d = {"small subunit": ids, "large subunit": ids2, "photosystem": ids3}
         fig = multi_means_and_histo(d, data, colors=COLOR_SCHEMES["Dolphin"] + COLOR_SCHEMES["Viking"], row_heights=[0.2, 0.2, 0.6], vertical_spacing=0.08)
         fig.update_yaxes(row=3, range=[0, 0.6])
@@ -734,6 +747,7 @@ rule plotBarcodePlot:
     output:
         svg = "Pipeline/Paper/Subfigures/ribosomalIdentifier.svg",
         html = "Pipeline/Paper/Subfigures/ribosomalIdentifier.html",
+        tsv="Pipeline/Paper/SourceData/F3C.tsv"
     run:
         import plotly.graph_objs as go
         import pandas as pd
@@ -753,6 +767,13 @@ rule plotBarcodePlot:
         small_subunit = df[df["small_ribosomal"] == True]["RAPDORid"]
         large_subunit = df[df["large_ribosomal"] == True]["RAPDORid"]
         photosystem = df[df["photosystem"] == True]["RAPDORid"]
+
+        joined_ids = set(pd.concat([small_subunit, large_subunit, photosystem]).tolist())
+        source_data = data.df.loc[
+            data.df["RAPDORid"].isin(joined_ids), ["Gene", "Rank", "small_ribosomal",
+                                                   "large_ribosomal", "photosystem"]]
+        source_data.to_csv(output.tsv,sep="\t",index=False)
+
         colors = (COLOR_SCHEMES["Dolphin"][0], COLOR_SCHEMES["Dolphin"][1], COLOR_SCHEMES["Viking"][0])
 
         d = {"small subunit": small_subunit, "large subunit": large_subunit, "photosystem": photosystem}
@@ -2366,6 +2387,24 @@ rule copySubfigures:
         cp {input.s2} {output.s2}
         cp {input.s1} {output.s1}
         """
+
+rule joinSourceData:
+    input:
+        f3a = rules.rplaDistribution.output.tsv,
+        f3b = rules.plotMeanDistribution.output.tsv,
+        f3c = rules.plotBarcodePlot.output.tsv,
+    output:
+        xlsx = "Pipeline/Paper/SourceData/F3B.xlsx"
+    run:
+        import pandas as pd
+        f3a = pd.read_csv(input.f3a, sep="\t")
+        f3b = pd.read_csv(input.f3b, sep="\t")
+        f3c = pd.read_csv(input.f3c, sep="\t")
+        with pd.ExcelWriter(output.xlsx, engine="openpyxl") as writer:
+            f3a.to_excel(writer,sheet_name="Figure3A",index=False)
+            f3b.to_excel(writer,sheet_name="Figure3B",index=False)
+            f3c.to_excel(writer,sheet_name="Figure3C",index=False)
+
 
 rule svgsToPngs:
     input:

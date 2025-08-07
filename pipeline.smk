@@ -47,6 +47,7 @@ rule all:
         file1 = rules.zipSupplementaryFile1.output,
         pngs = rules.svgsToPngs.output,
         pngs_sup = rules.svgsToPngs_supplementary.output,
+        source_data = rules.joinSourceData.output,
 
 
 
