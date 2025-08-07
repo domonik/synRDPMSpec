@@ -1045,7 +1045,8 @@ rule createBubblePlot:
     output:
         svg = "Pipeline/Paper/Subfigures/DimensionReduction_ids{highlight}.svg",
         html = "Pipeline/plots/DimensionReduction_ids{highlight}.html",
-        json = "Pipeline/plots/DimensionReduction_ids{highlight}.json"
+        json = "Pipeline/plots/DimensionReduction_ids{highlight}.json",
+        source_data = "Pipeline/Paper/SourceData/BubblePlot_{highlight}.tsv"
     run:
         from RAPDOR.datastructures import RAPDORData
         import pandas as pd
@@ -1062,7 +1063,12 @@ rule createBubblePlot:
             ids = df[df["old_locus_tag"].isin(config["bubble_plot"]["locus_tag"])]["RAPDORid"]
         else:
             raise ValueError("Not supported")
+        embedding = data.current_embedding
+        rel_dist_change = embedding[:, 1]
         data.df['Gene'] = data.df.apply(lambda row: row['old_locus_tag'] if pd.isnull(row['Gene']) or row['Gene'] == '' else row['Gene'], axis=1)
+        source_data = data.df.loc[:, ["Gene", "Mean Distance", "relative fraction shift",]]
+        source_data["relative distribution change"] = rel_dist_change
+        source_data.to_csv(output.source_data, sep="\t", index=False)
         fig = plot_dimension_reduction(
             rapdordata=data,
             colors=COLOR_SCHEMES["Dolphin"],
@@ -2409,6 +2415,7 @@ rule joinSourceData:
         f3c = rules.plotBarcodePlot.output.tsv,
         f5a = rules.plotFigureX.output.source_data,
         f5c = rules.plotComparisonExample.output.source_data,
+        f6 = expand(rules.createBubblePlot.output.source_data, highlight="topHits")[0],
         f7 = expand(rules.plotTopHitDistributions.output.source_data, distribution=["D1"])[0],
 
     output:
@@ -2420,6 +2427,7 @@ rule joinSourceData:
         f3c = pd.read_csv(input.f3c, sep="\t")
         f5a = pd.read_csv(input.f5a, sep="\t")
         f5c = pd.read_csv(input.f5c, sep="\t")
+        f6 = pd.read_csv(input.f6, sep="\t")
         f7 = pd.read_csv(input.f7, sep="\t")
         with pd.ExcelWriter(output.xlsx, engine="openpyxl") as writer:
             f3a.to_excel(writer,sheet_name="Figure3A",index=False)
@@ -2427,6 +2435,7 @@ rule joinSourceData:
             f3c.to_excel(writer,sheet_name="Figure3C",index=False)
             f5a.to_excel(writer,sheet_name="Figure5A",index=False)
             f5c.to_excel(writer,sheet_name="Figure5C",index=False)
+            f6.to_excel(writer,sheet_name="Figure6",index=False)
             f7.to_excel(writer,sheet_name="Figure7",index=False)
 
 
