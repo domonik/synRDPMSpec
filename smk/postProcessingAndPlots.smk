@@ -1664,7 +1664,8 @@ rule plotJSDMScoreCorrelation:
     input:
         jsons = expand(rules.calcMobilityScore.output.json, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)])
     output:
-        svg = "Pipeline/Paper/Supplementary/Figures/FigureS9.svg"
+        svg = "Pipeline/Paper/Supplementary/Figures/FigureS9.svg",
+        source_data = "Pipeline/Paper/SourceData/FS9.tsv"
     run:
         import plotly.graph_objs as go
         from RAPDOR.datastructures import RAPDORData
@@ -1675,12 +1676,18 @@ rule plotJSDMScoreCorrelation:
         rows = cols = 2
         titles = [f"{x} min" for x in (2, 8, 20, 90)]
         color = _color_to_calpha(DEFAULT_COLORS[0],0.3)
-
         fig = make_subplots(rows =rows, cols = cols, y_title="Mobility Score", x_title="Jensen-Shannon Distance", subplot_titles=titles, vertical_spacing=0.15)
+        dfs = []
         for idx, data in enumerate(input.jsons):
             data = RAPDORData.from_file(data)
             x = data.df["Mean Distance"]
             y = data.df["mobility score"]
+            source_data = pd.DataFrame()
+            source_data["Gene.names"] = data.df["Gene.names"]
+
+            source_data[f"Jensen-Shannon Distance - {titles[idx]}"] = x
+            source_data[f"mobility score - {titles[idx]}"] = y
+            dfs.append(source_data)
             corr, pval = pearsonr(x, y)
             row = idx // cols
             col = idx % cols
@@ -1715,6 +1722,10 @@ rule plotJSDMScoreCorrelation:
             height=config["height"]
         )
         fig.write_image(output.svg)
+        merged_df = dfs[0]
+        for df in dfs[1:]:
+            merged_df = merged_df.merge(df, on="Gene.names")
+        merged_df.to_csv(output.source_data, sep="\t", index=False)
 
 rule prepareForLimma:
     input:
@@ -2448,7 +2459,8 @@ rule joinSourceData:
         f9b = rules.plotEGFHeLa.output.source_datab,
         s4 = expand(rules.plotTopHitDistributions.output.source_data,distribution=["S3"])[0],
         sf6ac = rules.plotFigureX.output.source_data2,
-
+        sf7 = rules.meanRuntimeAndRAM.output.file,
+        sf9 = rules.plotJSDMScoreCorrelation.output.source_data
     output:
         xlsx = "Pipeline/Paper/SourceData/SourceDataFigures.xlsx"
     run:
@@ -2464,6 +2476,8 @@ rule joinSourceData:
         f9b = pd.read_csv(input.f9b, sep="\t")
         s4 = pd.read_csv(input.s4, sep="\t")
         sf6ac = pd.read_csv(input.sf6ac, sep="\t")
+        sf7 = pd.read_csv(input.sf7, sep="\t")
+        sf9 = pd.read_csv(input.sf9, sep="\t")
         with pd.ExcelWriter(output.xlsx, engine="openpyxl") as writer:
             f3a.to_excel(writer,sheet_name="Figure3A",index=False)
             f3b.to_excel(writer,sheet_name="Figure3B",index=False)
@@ -2476,6 +2490,8 @@ rule joinSourceData:
             f9b.to_excel(writer,sheet_name="Figure9B",index=False)
             s4.to_excel(writer,sheet_name="SupplementaryFigure4",index=False)
             sf6ac.to_excel(writer,sheet_name="SupplementaryFigure6AandC",index=False)
+            sf7.to_excel(writer,sheet_name="SupplementaryFigure7",index=False)
+            sf9.to_excel(writer,sheet_name="SupplementaryFigure9",index=False)
 
 
 rule svgsToPngs:
