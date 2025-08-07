@@ -1846,6 +1846,8 @@ rule plotEGFHeLa:
         svg = "Pipeline/Paper/Subfigures/HeLaPlot.svg",
         html = "Pipeline/Paper/Subfigures/HeLaPlot.html",
         dist_svg = "Pipeline/Paper/Subfigures/HeLaPlotDistribution.svg",
+        source_data = "Pipeline/Paper/SourceData/F9A.tsv",
+        source_datab = "Pipeline/Paper/SourceData/F9B.tsv",
     run:
         from RAPDOR.datastructures import RAPDORData
         from RAPDOR.plots import plot_protein_distributions, _color_to_calpha
@@ -1862,20 +1864,23 @@ rule plotEGFHeLa:
         rows = 4
         cols = 2
         titles = [f"{x} min" for x in (2, 8, 20, 90)]
+        mapping = (2, 8, 20, 90)
         fig = make_subplots(
             rows =rows,
             cols = cols,
+            row_titles=titles,
             y_title="log<sub>10</sub>(p-value)",
             vertical_spacing=0.05,
             horizontal_spacing=0.05,
             column_widths=[0.7, 0.3]
         )
         dreg = []
-
+        dfs = []
         for idx, data in enumerate(input.jsons):
             row = idx // cols
             col = idx % cols
             plot_ref = (idx + 1) * 2 - 1
+            mins = mapping[idx]
 
             data = RAPDORData.from_file(data)
             found = identified[idx] if idx in identified else novel
@@ -1981,10 +1986,32 @@ rule plotEGFHeLa:
                 fig.add_annotation(
                     anno
                 )
+            df = df.loc[:, ["Gene.names", "-log10(p-value)", "Mean Distance"]]
+            df = df.rename({"-log10(p-value)": f"-log10(p-value) {mins} min", "Mean Distance": f"Jensen-Shannon distance {mins} min"}, axis=1)
+            df[f"shift in Martines-Val et al. at {mins} min"] = df["Gene.names"].isin(found)
+            dfs.append(df)
+        merged_df = dfs[0]
+        for df in dfs[1:]:
+            merged_df = merged_df.merge(df,on="Gene.names")
+        merged_df.to_csv(output.source_data, sep="\t", index=False)
 
         data = RAPDORData.from_file(input.jsons[0])
         sdf = data.df
         ids = sdf[sdf["Gene.names"].isin(["FOXJ3", "MITF", "ITSN1"])]["RAPDORid"]
+
+        source_data = data.df.loc[data.df["RAPDORid"].isin(ids), ["Gene.names"]]
+        indices = source_data.index
+
+        source_data = source_data.loc[source_data.index.repeat(8)].reset_index(drop=True)
+        source_data["type"] = (["Control"] * 4 + ["EGF 2 min"] * 4) * (source_data.shape[0] // 8)
+
+        subdata = data.norm_array[indices]
+        rsubdata = subdata.reshape(source_data.shape[0],-1)
+
+        source_data.loc[:, [f"rel. Intensity (FR {x+1})" for x in range(rsubdata.shape[1])]] = rsubdata
+        source_data.to_csv(output.source_datab,sep="\t",index=False)
+
+
         dist_fig = plot_protein_distributions(ids,data,mode="bar",colors=DEFAULT_COLORS,barmode="overlay", vertical_spacing=0.03)
         dist_fig.update_traces(legend="legend1")
         dist_fig.data[1].update(showlegend=False)
@@ -2417,7 +2444,8 @@ rule joinSourceData:
         f5c = rules.plotComparisonExample.output.source_data,
         f6 = expand(rules.createBubblePlot.output.source_data, highlight="topHits")[0],
         f7 = expand(rules.plotTopHitDistributions.output.source_data, distribution=["D1"])[0],
-
+        f9a = rules.plotEGFHeLa.output.source_data,
+        f9b = rules.plotEGFHeLa.output.source_datab,
     output:
         xlsx = "Pipeline/Paper/SourceData/SourceDataFigures.xlsx"
     run:
@@ -2429,6 +2457,8 @@ rule joinSourceData:
         f5c = pd.read_csv(input.f5c, sep="\t")
         f6 = pd.read_csv(input.f6, sep="\t")
         f7 = pd.read_csv(input.f7, sep="\t")
+        f9a = pd.read_csv(input.f9a, sep="\t")
+        f9b = pd.read_csv(input.f9b, sep="\t")
         with pd.ExcelWriter(output.xlsx, engine="openpyxl") as writer:
             f3a.to_excel(writer,sheet_name="Figure3A",index=False)
             f3b.to_excel(writer,sheet_name="Figure3B",index=False)
@@ -2437,6 +2467,8 @@ rule joinSourceData:
             f5c.to_excel(writer,sheet_name="Figure5C",index=False)
             f6.to_excel(writer,sheet_name="Figure6",index=False)
             f7.to_excel(writer,sheet_name="Figure7",index=False)
+            f9a.to_excel(writer,sheet_name="Figure9A",index=False)
+            f9b.to_excel(writer,sheet_name="Figure9B",index=False)
 
 
 rule svgsToPngs:
