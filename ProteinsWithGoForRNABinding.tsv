@@ -1,0 +1,109 @@
+old_locus_tag	GO RNA-binding	Protein names	Gene Names	Gene Names (ordered locus)	small_ribosomal	large_ribosomal	ribosomal protein
+slr0083	True	RNA helicase CrhR (EC 3.6.4.13)	crhR deaD slr0083	slr0083	False	False	False
+slr1129	True	Ribonuclease E (RNase E) (SynRne) (EC 3.1.26.12) (Ribonuclease E/G)	rne slr1129	slr1129	False	False	False
+sll1043	True	Polyribonucleotide nucleotidyltransferase (EC 2.7.7.8) (Polynucleotide phosphorylase) (PNPase)	pnp sll1043	sll1043	False	False	False
+slr0665	True	Aconitate hydratase B (ACN) (Aconitase) (EC 4.2.1.3) ((2R,3S)-2-methylisocitrate dehydratase) ((2S,3R)-3-hydroxybutane-1,2,3-tricarboxylate dehydratase) (2-methyl-cis-aconitate hydratase) (EC 4.2.1.99) (Iron-responsive protein-like) (IRP-like) (RNA-binding protein)	acnB slr0665	slr0665	False	False	False
+sll0098	True	Probable dual-specificity RNA methyltransferase RlmN (EC 2.1.1.192) (23S rRNA (adenine(2503)-C(2))-methyltransferase) (23S rRNA m2A2503 methyltransferase) (Ribosomal RNA large subunit methyltransferase N) (tRNA (adenine(37)-C(2))-methyltransferase) (tRNA m2A37 methyltransferase)	rlmN sll0098	sll0098	False	False	False
+sll1802	True	Large ribosomal subunit protein uL2 (50S ribosomal protein L2)	rplB rpl2 sll1802	sll1802	False	True	True
+sll1553	True	Phenylalanine--tRNA ligase beta subunit (EC 6.1.1.20) (Phenylalanyl-tRNA synthetase beta subunit) (PheRS)	pheT sll1553	sll1553	False	False	False
+slr1646	True	Ribonuclease 3 1 (EC 3.1.26.3) (Ribonuclease III 1) (RNase III 1)	rnc1 slr1646	slr1646	False	False	False
+slr0992	True	Putative tRNA (cytidine(34)-2'-O)-methyltransferase (EC 2.1.1.207) (tRNA (cytidine/uridine-2'-O-)-methyltransferase)	slr0992	slr0992	False	False	False
+sll0078	True	Threonine--tRNA ligase (EC 6.1.1.3) (Threonyl-tRNA synthetase) (ThrRS)	thrS sll0078	sll0078	False	False	False
+sll0898	True	Small ribosomal subunit biogenesis GTPase RsgA (EC 3.6.1.-)	rsgA engC sll0898	sll0898	False	False	False
+slr0551	True	Ribonuclease J (RNase J) (EC 3.1.-.-)	rnj slr0551	slr0551	False	False	False
+sll1804	True	Small ribosomal subunit protein uS3 (30S ribosomal protein S3)	rpsC rps3 sll1804	sll1804	True	False	True
+sll1253	True	A-adding tRNA nucleotidyltransferase (A-adding TNT) (EC 2.7.7.-) (A-adding enzyme)	sll1253	sll1253	False	False	False
+sll1096	True	Small ribosomal subunit protein uS12 (30S ribosomal protein S12)	rpsL rps12 sll1096	sll1096	True	False	True
+sll0362	True	Alanine--tRNA ligase (EC 6.1.1.7) (Alanyl-tRNA synthetase) (AlaRS)	alaS sll0362	sll0362	False	False	False
+sll0322	True	Carbamoyltransferase HypF (EC 6.2.-.-) (Carbamoyl phosphate-converting enzyme HypF) ([NiFe]-hydrogenase maturation factor HypF) (Hydrogenase maturation protein HypF)	hypF sll0322	sll0322	False	False	False
+sll0926	True	tRNA-dihydrouridine(20/20a) synthase (EC 1.3.1.-) (EC 1.3.1.91) (DusA-like U20-specific dihydrouridine synthase) (U20-specific Dus) (tRNA-dihydrouridine synthase 2)	dus2 sll0926	sll0926	False	False	False
+slr1031	True	Tyrosine--tRNA ligase (EC 6.1.1.1) (Tyrosyl-tRNA synthetase) (TyrRS)	tyrS slr1031	slr1031	False	False	False
+sll1816	True	Small ribosomal subunit protein uS13 (30S ribosomal protein S13)	rpsM rps13 sll1816	sll1816	True	False	True
+slr1550	True	Lysine--tRNA ligase (EC 6.1.1.6) (Lysyl-tRNA synthetase) (LysRS)	lysS slr1550	slr1550	False	False	False
+slr0457	True	tRNA pseudouridine synthase B (EC 5.4.99.25) (tRNA pseudouridine(55) synthase) (Psi55 synthase) (tRNA pseudouridylate synthase) (tRNA-uridine isomerase)	truB slr0457	slr0457	False	False	False
+sll1746	True	Large ribosomal subunit protein bL12 (50S ribosomal protein L7/L12)	rplL rpl12 sll1746	sll1746	False	True	True
+slr0469	True	Small ribosomal subunit protein uS4 (30S ribosomal protein S4)	rpsD rps4 slr0469	slr0469	True	False	True
+sll0708	True	Ribosomal RNA small subunit methyltransferase A (EC 2.1.1.182) (16S rRNA (adenine(1518)-N(6)/adenine(1519)-N(6))-dimethyltransferase) (16S rRNA dimethyladenosine transferase) (16S rRNA dimethylase) (S-adenosylmethionine-6-N', N'-adenosyl(rRNA) dimethyltransferase)	rsmA ksgA sll0708	sll0708	False	False	False
+slr1105	True	Large ribosomal subunit assembly factor BipA (EC 3.6.5.-) (50S ribosomal subunit assembly factor BipA) (GTP-binding protein BipA)	bipA slr1105	slr1105	False	False	False
+sll1362	True	Isoleucine--tRNA ligase (EC 6.1.1.5) (Isoleucyl-tRNA synthetase) (IleRS)	ileS sll1362	sll1362	False	False	False
+slr1531	True	Signal recognition particle protein (EC 3.6.5.4) (Fifty-four homolog)	ffh slr1531	slr1531	False	False	False
+sll0454	True	Phenylalanine--tRNA ligase alpha subunit (EC 6.1.1.20) (Phenylalanyl-tRNA synthetase alpha subunit) (PheRS)	pheS sll0454	sll0454	False	False	False
+slr0321	True	GTPase Era	era slr0321	slr0321	False	False	False
+slr0346	True	Ribonuclease 3 2 (EC 3.1.26.3) (Ribonuclease III 2) (RNase III 2)	rnc2 slr0346	slr0346	False	False	False
+sll0179	True	Glutamate--tRNA ligase (EC 6.1.1.17) (Glutamyl-tRNA synthetase) (GluRS)	gltX sll0179	sll0179	False	False	False
+slr1130	True	Ribonuclease HII (RNase HII) (EC 3.1.26.4)	rnhB slr1130	slr1130	False	False	False
+slr0679	True	Probable ribosomal RNA small subunit methyltransferase B (EC 2.1.1.176) (16S rRNA m5C967 methyltransferase) (rRNA (cytosine-C(5)-)-methyltransferase RsmB)	rsmB sun slr0679	slr0679	False	False	False
+slr2035	True	Glutamate 5-kinase (EC 2.7.2.11) (Gamma-glutamyl kinase) (GK)	proB slr2035	slr2035	False	False	False
+sll1820	True	tRNA pseudouridine synthase A (EC 5.4.99.12) (tRNA pseudouridine(38-40) synthase) (tRNA pseudouridylate synthase I) (tRNA-uridine isomerase I)	truA sll1820	sll1820	False	False	False
+slr1356	True	Small ribosomal subunit protein bS1A (30S ribosomal protein S1 A)	rps1A slr1356	slr1356	False	False	False
+sll0844	True	tRNA-specific 2-thiouridylase MnmA (EC 2.8.1.13)	mnmA trmU sll0844	sll0844	False	False	False
+slr1469	True	Ribonuclease P protein component (RNase P protein) (RNaseP protein) (EC 3.1.26.5) (Protein C5)	rnpA slr1469	slr1469	False	False	False
+sll0825	True	CC-adding tRNA nucleotidyltransferase (C-adding TNT) (EC 2.7.7.-) (CC-adding enzyme)	sll0825	sll0825	False	False	False
+sll1812	True	Small ribosomal subunit protein uS5 (30S ribosomal protein S5)	rpsE rps5 sll1812	sll1812	True	False	True
+ssl2233	True	Small ribosomal subunit protein bS20 (30S ribosomal protein S20)	rpsT rps20 ssl2233	ssl2233	True	False	True
+sll1767	True	Small ribosomal subunit protein bS6 (30S ribosomal protein S6)	rpsF rps6 sll1767	sll1767	True	False	True
+sll1101	True	Small ribosomal subunit protein uS10 (30S ribosomal protein S10)	rpsJ rps10 sll1101	sll1101	True	False	True
+sll1097	True	Small ribosomal subunit protein uS7 (30S ribosomal protein S7)	rpsG rps7 sll1097	sll1097	True	False	True
+slr1678	True	Large ribosomal subunit protein bL21 (50S ribosomal protein L21)	rplU rpl21 slr1678	slr1678	False	True	True
+slr1629	True	Uncharacterized RNA pseudouridine synthase slr1629 (EC 5.4.99.-) (RNA pseudouridylate synthase) (RNA-uridine isomerase)	slr1629	slr1629	False	False	False
+slr1639	True	SsrA-binding protein (Small protein B)	smpB slr1639	slr1639	False	False	False
+slr0064	True	Putative RNA methyltransferase slr0064 (EC 2.1.1.-)	slr0064	slr0064	False	False	False
+slr0644	True	Probable tRNA-dihydrouridine synthase 1 (EC 1.3.1.-)	dus1 slr0644	slr0644	False	False	False
+ssr2754.1	True	Toxin YoeB (EC 3.1.-.-) (Endoribonuclease YoeB) (Putative mRNA interferase YoeB)	yoeB ssr2754.1	ssr2754.1	False	False	False
+sll1743	True	Large ribosomal subunit protein uL11 (50S ribosomal protein L11)	rplK rpl11 sll1743	sll1743	False	True	True
+ssr1399	True	Small ribosomal subunit protein bS18 (30S ribosomal protein S18)	rpsR rps18 ssr1399	ssr1399	True	False	True
+sll0767	True	Large ribosomal subunit protein bL20 (50S ribosomal protein L20)	rplT rpl20 sll0767	sll0767	False	True	True
+slr1592	True	Uncharacterized RNA pseudouridine synthase slr1592 (EC 5.4.99.-) (RNA pseudouridylate synthase) (RNA-uridine isomerase)	slr1592	slr1592	False	False	False
+sll1806	True	Large ribosomal subunit protein uL14 (50S ribosomal protein L14)	rplN rpl14 sll1806	sll1806	False	True	True
+slr1673	True	Uncharacterized tRNA/rRNA methyltransferase slr1673 (EC 2.1.1.-)	slr1673	slr1673	False	False	False
+slr0955	True	Uncharacterized tRNA/rRNA methyltransferase slr0955 (EC 2.1.1.-)	slr0955	slr0955	False	False	False
+slr0612	True	Uncharacterized RNA pseudouridine synthase slr0612 (EC 5.4.99.-) (RNA pseudouridylate synthase) (RNA-uridine isomerase)	slr0612	slr0612	False	False	False
+sll1817	True	Small ribosomal subunit protein uS11 (30S ribosomal protein S11)	rpsK rps11 sll1817	sll1817	True	False	True
+sll1813	True	Large ribosomal subunit protein uL15 (50S ribosomal protein L15)	rplO rpl15 sll1813	sll1813	False	True	True
+sll1810	True	Large ribosomal subunit protein uL6 (50S ribosomal protein L6)	rplF rpl6 sll1810	sll1810	False	True	True
+sll1808	True	Large ribosomal subunit protein uL5 (50S ribosomal protein L5)	rplE rpl5 sll1808	sll1808	False	True	True
+sll1800	True	Large ribosomal subunit protein uL4 (50S ribosomal protein L4)	rplD rpl4 sll1800	sll1800	False	True	True
+slr1984	True	Small ribosomal subunit protein bS1B (30S ribosomal protein S1 B)	rps1b slr1984	slr1984	False	False	False
+sll0271	True	Transcription antitermination protein NusB (Antitermination factor NusB)	nusB sll0271	sll0271	False	False	False
+sll1910	True	Acetazolamide conferring resistance protein zam	zam sll1910	sll1910	False	False	False
+sll1745	True	Large ribosomal subunit protein uL10 (50S ribosomal protein L10)	rplJ rpl10 sll1745	sll1745	False	True	True
+sll1744	True	Large ribosomal subunit protein uL1 (50S ribosomal protein L1)	rplA rpl1 sll1744	sll1744	False	True	True
+slr0628	True	Small ribosomal subunit protein uS14 (30S ribosomal protein S14)	rpsN rps14 slr0628	slr0628	True	False	True
+sll1290	True	Uncharacterized ribonuclease sll1290 (EC 3.1.-.-)	sll1290	sll1290	False	False	False
+sll1824	True	Large ribosomal subunit protein bL25 (50S ribosomal protein L25)	rplY sll1824	sll1824	False	True	True
+ssl3445	True	Large ribosomal subunit protein bL31 (50S ribosomal protein L31)	rpmE rpl31 ssl3445	ssl3445	False	True	True
+sll1822	True	Small ribosomal subunit protein uS9 (30S ribosomal protein S9)	rpsI rps9 sll1822	sll1822	True	False	True
+sll1809	True	Small ribosomal subunit protein uS8 (30S ribosomal protein S8)	rpsH rps8 sll1809	sll1809	True	False	True
+sll1805	True	Large ribosomal subunit protein uL16 (50S ribosomal protein L16)	rplP rpl16 sll1805	sll1805	False	True	True
+ssl3432	True	Small ribosomal subunit protein uS19 (30S ribosomal protein S19)	rpsS rps19 ssl3432	ssl3432	True	False	True
+sll1801	True	Large ribosomal subunit protein uL23 (50S ribosomal protein L23)	rplW rpl23 sll1801	sll1801	False	True	True
+sll1799	True	Large ribosomal subunit protein uL3 (50S ribosomal protein L3)	rplC rpl3 sll1799	sll1799	False	True	True
+slr0954	True	Mini-ribonuclease 3 (Mini-3) (Mini-RNase 3) (EC 3.1.26.-) (Mini-RNase III) (Mini-III)	mrnC slr0954	slr0954	False	False	False
+sll1244	True	Large ribosomal subunit protein bL9 (50S ribosomal protein L9)	rplI rpl9 sll1244	sll1244	False	True	True
+ssl1784	True	Small ribosomal subunit protein uS15 (30S ribosomal protein S15)	rpsO rps15 ssl1784	ssl1784	True	False	True
+sll1821	True	Large ribosomal subunit protein uL13 (50S ribosomal protein L13)	rplM rpl13 sll1821	sll1821	False	True	True
+ssl3441	True	Translation initiation factor IF-1	infA ssl3441	ssl3441	False	False	False
+sll1811	True	Large ribosomal subunit protein uL18 (50S ribosomal protein L18)	rplR rpl18 sll1811	sll1811	False	True	True
+sll1807	True	Large ribosomal subunit protein uL24 (50S ribosomal protein L24)	rplX rpl24 sll1807	sll1807	False	True	True
+ssl3437	True	Small ribosomal subunit protein uS17 (30S ribosomal protein S17)	rpsQ rps17 ssl3437	ssl3437	True	False	True
+sll1803	True	Large ribosomal subunit protein uL22 (50S ribosomal protein L22)	rplV rpl22 sll1803	sll1803	False	True	True
+slr0361	True	Uncharacterized RNA pseudouridine synthase slr0361 (EC 5.4.99.-) (RNA pseudouridylate synthase) (RNA-uridine isomerase)	slr0361	slr0361	False	False	False
+sll0517	True	Putative RNA-binding protein RbpA	rbpA sll0517	sll0517	False	False	False
+sll0546	True	Uncharacterized protein sll0546	sll0546	sll0546	False	False	False
+slr0120	True	tRNA (cytidine/uridine-2'-O-)-methyltransferase TrmJ (EC 2.1.1.200) (tRNA (cytidine(32)/uridine(32)-2'-O)-methyltransferase) (tRNA Cm32/Um32 methyltransferase)	trmJ slr0120	slr0120	False	False	False
+slr0880	True	Rqc2 homolog RqcH (RqcH)	rqcH slr0880	slr0880	False	False	False
+sll0216	True	Sll0216 protein	sll0216	sll0216	False	False	False
+slr1110	True	Slr1110 protein	slr1110	slr1110	False	False	False
+ssr1766	True	Ssr1766 protein	ssr1766	ssr1766	False	False	False
+slr1540	True	Slr1540 protein	slr1540	slr1540	False	False	False
+ssr1480	True	RNA-binding protein	ssr1480	ssr1480	False	False	False
+sll2002	True	Sll2002 protein	sll2002	sll2002	False	False	False
+slr1999	True	Slr1999 protein	slr1999	slr1999	False	False	False
+sll1252	True	Sll1252 protein	sll1252	sll1252	False	False	False
+sll1866	True	Sll1866 protein	sll1866	sll1866	False	False	False
+slr1472	True	Slr1472 protein	slr1472	slr1472	False	False	False
+slr0950	True	Slr0950 protein	slr0950	slr0950	False	False	False
+slr0287	True	Slr0287 protein	slr0287	slr0287	False	False	False
+slr0006	True	Slr0006 protein	slr0006	slr0006	False	False	False
+slr0193	True	RNA-binding protein	slr0193	slr0193	False	False	False
+slr6100	True	Slr6100 protein	slr6100	slr6100	False	False	False

@@ -1113,7 +1113,9 @@ rule createBubblePlot:
                 annotation.update(showarrow=True, ax=-13,  ay=1.25,axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
             elif annotation.text == "Slr0670":
                 annotation.update(showarrow=True,ax=-8.5 ,ay=.75, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
-        #fig.update_xaxes(range=[-6.5, -1], row=2)
+            elif annotation.text == "BioU":
+                    annotation.update(showarrow=True,ax=7 ,ay=-1.5, axref=annotation.xref,ayref=annotation.yref,arrowcolor='black',)
+            #fig.update_xaxes(range=[-6.5, -1], row=2)
         #fig.update_yaxes(range=[-.75, .75], row=2)
         fig.write_image(output.svg)
         fig.write_html(output.html)
@@ -1911,9 +1913,9 @@ rule plotEGFHeLa:
             fig.update_yaxes(scaleanchor=f"x{plot_ref+1}",scaleratio=1,col=2, row=idx+1)
             #fig.update_xaxes(scaleanchor=f"y{plot_ref+1}", scaleratio=1,col=2, row=idx+1)
 
-            highlight = {"ITSN1": (0.11, 0.7), "MITF": (0., 1.45), "FOXJ3": (0.5, 0.6)} if idx > 1 else {"ITSN1":(0, 1.1) , "MITF": (0., 1.4), "FOXJ3": (0.2, 1.55),  "GRB2": (.5, .6), "CBL": (.2, .55), "SHC1":(0.12, 0.8) }
+            highlight = {"ITSN1": (0.05, 0.5), "MITF": (0., 1.45), "FOXJ3": (0.5, 0.6)} if idx > 1 else {"ITSN1":(0, 1.1) , "MITF": (0., 1.4), "FOXJ3": (0.2, 1.55),  "GRB2": (.5, .6), "CBL": (.2, .55), "SHC1":(0.12, 0.8) }
             if idx == 3:
-                highlight["ITSN1"] = (0.11, 0.3)
+                #highlight["ITSN1"] = (0.11, 0.3)
                 highlight["FOXJ3"] = (0.5, 1.35)
             sdf = df[df["Gene.names"].isin(highlight)]
             for (_, row) in sdf.iterrows():
@@ -2363,6 +2365,32 @@ rule copySubfigures:
         cp {input.f1} {output.f1}
         cp {input.s2} {output.s2}
         cp {input.s1} {output.s1}
+        """
+
+rule svgsToPngs:
+    input:
+        expand("Pipeline/Paper/Figure{i}.svg", i=list(range(1, 8)) + list(range(9, 11)) )
+    output:
+        expand("Pipeline/Paper/Figure{i}.png", i=list(range(1, 8)) + list(range(9, 11)))
+    shell:
+        """
+        for svg in {input}; do
+            png="${{svg%.svg}}.png"
+            inkscape "$svg" --export-type=png --export-filename="$png" --export-dpi=600
+        done
+        """
+
+rule svgsToPngs_supplementary:
+    input:
+        expand("Pipeline/Paper/Supplementary/Figures/FigureS{i}.svg", i=[1, 2, 3, 4, 5, 6, 7, 9])
+    output:
+        expand("Pipeline/Paper/Supplementary/Figures/FigureS{i}.png", i=[1, 2, 3, 4, 5, 6, 7, 9])
+    shell:
+        """
+        for svg in {input}; do
+            png="${{svg%.svg}}.png"
+            inkscape "$svg" --export-type=png --export-filename="$png" --export-dpi=600
+        done
         """
 
 rule zipSupplementaryFile1:

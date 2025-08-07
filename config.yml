@@ -3,7 +3,7 @@ intensities: "Data/synIntensitiesIBAQ.tsv"
 design: "Data/synDesignIBAQ.tsv"
 
 bubble_plot:
-  locus_tag: ["ssr3189","ssl2245", "slr0782", "sll0947", "slr0711", "slr0147", "sll0726", "slr1143", "slr2130", "ssl3355", "sll1967" ,"slr1531","sll0517" ,"slr1265" ,"sll7087", "slr1030", "sll1961", "slr0670", "sll1371", "sll1315"]
+  locus_tag: ["ssr3189","ssl2245", "slr0782", "sll0947", "slr0711", "slr0147", "sll0726", "slr0355", "slr2130", "ssl3335", "sll1967" ,"slr1531","sll0517" ,"slr1265" ,"sll7087", "slr1030", "sll1961", "slr0670", "sll1371", "sll1315"]
 
 benchmark_repeats:  5
 fonts:
@@ -62,7 +62,7 @@ HeLaPlot:
 
 distributions:
   D1:
-    locus_tags: ["ssr3189","ssl2245", "slr0782", "sll0947", "slr0711", "slr0147", "sll0726", "slr1143", "slr2130", "ssl3355", "sll1967" ,"slr1531","sll0517" ,"slr1265" ,"sll7087", "slr1030", "sll1961", "slr0670", "sll1371", "sll1315"]
+    locus_tags: ["ssr3189","ssl2245", "slr0782", "sll0947", "slr0711", "slr0147", "sll0726", "slr0355", "slr2130", "ssl3355", "sll1967" ,"slr1531","sll0517" ,"slr1265" ,"sll7087", "slr1030", "sll1961", "slr0670", "sll1371", "sll1315"]
     height: 1100
     vertical_spacing: 0.022
     legend2_y: 1.05
@@ -100,7 +100,7 @@ tax_id: 11117
 minGSSize: 30
 maxGSSize: 500
 
-anosimCutoff: 0.5
+anosimCutoff: 0.48
 multipanel_font_size: 18
 
 Mouse:

@@ -10,7 +10,7 @@ rule all:
         #intensities =  rules.plotIntensitiesDistribution.output,
         correlation = rules.plotJSDMScoreCorrelation.output,
         rdpmspec = rules.plotMeanDistribution.output,
-        normalized = rules.replaceWithNormalizedIntensites.output,
+        #normalized = rules.replaceWithNormalizedIntensites.output,
         corr = rules.sampleCorrelation.output,
         qcRDeeP = rules.QCRDeePData.output,
         rapdor = rules.run_RAPDOR.output,
@@ -44,7 +44,11 @@ rule all:
         #naturrap = expand(rules.AnalyzeNatureWithRAPDOR.output, experiment=config["Mouse"].keys()),
         HelaPlot = rules.joinHeLaPlot.output,
         sup = rules.copyTableS2.output,
-        file1 = rules.zipSupplementaryFile1.output
+        file1 = rules.zipSupplementaryFile1.output,
+        pngs = rules.svgsToPngs.output,
+        pngs_sup = rules.svgsToPngs_supplementary.output,
+
+
 
 
 
