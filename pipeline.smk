@@ -48,6 +48,7 @@ rule all:
         pngs = rules.svgsToPngs.output,
         pngs_sup = rules.svgsToPngs_supplementary.output,
         source_data = rules.joinSourceData.output,
+        sdata = rules.plotComparisonExample.output,
 
 
 

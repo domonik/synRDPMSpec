@@ -293,7 +293,9 @@ rule plotComparisonExample:
         rapdor = rules.sortAndRankRDeep.output.json
     output:
         svg = "Pipeline/RAPDORonRDeeP/Plots/ComparisonExample.svg",
-        html = "Pipeline/RAPDORonRDeeP/Plots/ComparisonExample.html"
+        html = "Pipeline/RAPDORonRDeeP/Plots/ComparisonExample.html",
+        source_data = "Pipeline/Paper/SourceData/F5C.tsv",
+
     run:
         from RAPDOR.datastructures import RAPDORData
         from RAPDOR.plots import plot_protein_distributions, COLOR_SCHEMES
@@ -301,6 +303,18 @@ rule plotComparisonExample:
         data = RAPDORData.from_file(input.rapdor)
         data.df["Protein"] = data.df["RAPDORid"].str.split("_HUMAN").str[0]
         ids = ["NHP2_HUMAN", "EF2_HUMAN", "TIM50_HUMAN"]
+        source_data = data.df.loc[data.df["RAPDORid"].isin(ids), ["Protein"]]
+        indices = source_data.index
+
+        source_data = source_data.loc[source_data.index.repeat(6)].reset_index(drop=True)
+        source_data["type"] = (["Control"] * 3 + ["RNase"] * 3)  * 3
+
+        subdata = data.norm_array[indices]
+        rsubdata = subdata.reshape(3 * 6,-1)
+
+        source_data.loc[:, [f"rel. Intensity Fraction {x+2}" for x in range(rsubdata.shape[1])]] = rsubdata
+        source_data.to_csv(output.source_data, sep="\t", index=False)
+
         fig = plot_protein_distributions(
             ids,
             data,
@@ -484,6 +498,7 @@ rule plotFigureX:
         json_rdp = rules.plotRDeePDataVennDiagram.output.json_rdp,
     output:
         df = "Pipeline/Paper/Supplementary/Tables/SupplementaryTableX.tsv",
+        source_data = "Pipeline/Paper/SourceData/F5A.tsv",
         figurex = "Pipeline/Paper/Subfigures/FigureX.svg",
         supplementary_figurex = "Pipeline/Paper/Supplementary/Figures/FigureS6.svg",
 
@@ -559,7 +574,7 @@ rule plotFigureX:
             },
             index=["RAPDOR", "RDeeP"]
         )
-
+        source_data = pd.DataFrame()
         #out_df["AUROC"] = pd.NA
         #out_df["AUPRC"] = pd.NA
         for idx, (sort_col, name, term, color) in enumerate(data):
@@ -583,6 +598,8 @@ rule plotFigureX:
             out_df.loc[name, (lgroup, "AUROC")] = auroc
             out_df.loc[name, (lgroup, "AUPRC")] = auprc
             if lgroup == "RBP":
+                source_data[f"{name} - False positive rate"] = fpr
+                source_data[f"{name} - True positive rate"] = tpr
                 multi_fig.add_trace(go.Scatter(x=[None],y=[None],mode="markers",marker=dict(color=color),name=name, showlegend=True))
 
                 multi_fig.add_trace(go.Scatter(
@@ -646,6 +663,7 @@ rule plotFigureX:
         all_fig = plotly.io.read_json(input.json_all)
         rbp_fig = plotly.io.read_json(input.json_rbp)
         rdp_fig = plotly.io.read_json(input.json_rdp)
+        source_data.to_csv(output.source_data, sep="\t", index=False)
 
         for idx, (name, fig) in enumerate([("All", all_fig), ("RBP", rbp_fig), ("RDP", rdp_fig)], 1):
             if name == "RDP":

@@ -703,7 +703,7 @@ rule plotMeanDistribution:
         source_data = data.df.loc[data.df["RAPDORid"].isin(joined_ids), ["Gene", "Mean Distance", "ANOSIM R", "small_ribosomal", "large_ribosomal", "photosystem"]]
         indices = source_data.index
         source_data = source_data.loc[source_data.index.repeat(2)].reset_index(drop=True)
-        source_data["type"] = ["RNase", "Control"] * (len(source_data) // 2)
+        source_data["type"] = ["Control", "RNase"] * (len(source_data) // 2)
         means = data._treatment_means[:, indices]
         means2 = means.swapaxes(0, 1).reshape(150,-1)
         source_data.loc[:, [f"rel. Intensity Fraction {x+2}" for x in range(means2.shape[1])]] = means2
@@ -2393,6 +2393,8 @@ rule joinSourceData:
         f3a = rules.rplaDistribution.output.tsv,
         f3b = rules.plotMeanDistribution.output.tsv,
         f3c = rules.plotBarcodePlot.output.tsv,
+        f5a = rules.plotFigureX.output.source_data,
+        f5c = rules.plotComparisonExample.output.source_data,
     output:
         xlsx = "Pipeline/Paper/SourceData/F3B.xlsx"
     run:
@@ -2400,10 +2402,14 @@ rule joinSourceData:
         f3a = pd.read_csv(input.f3a, sep="\t")
         f3b = pd.read_csv(input.f3b, sep="\t")
         f3c = pd.read_csv(input.f3c, sep="\t")
+        f5a = pd.read_csv(input.f5a, sep="\t")
+        f5c = pd.read_csv(input.f5c, sep="\t")
         with pd.ExcelWriter(output.xlsx, engine="openpyxl") as writer:
             f3a.to_excel(writer,sheet_name="Figure3A",index=False)
             f3b.to_excel(writer,sheet_name="Figure3B",index=False)
             f3c.to_excel(writer,sheet_name="Figure3C",index=False)
+            f5a.to_excel(writer,sheet_name="Figure5A",index=False)
+            f5c.to_excel(writer,sheet_name="Figure5C",index=False)
 
 
 rule svgsToPngs:
