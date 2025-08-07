@@ -2446,6 +2446,9 @@ rule joinSourceData:
         f7 = expand(rules.plotTopHitDistributions.output.source_data, distribution=["D1"])[0],
         f9a = rules.plotEGFHeLa.output.source_data,
         f9b = rules.plotEGFHeLa.output.source_datab,
+        s4 = expand(rules.plotTopHitDistributions.output.source_data,distribution=["S3"])[0],
+        sf6ac = rules.plotFigureX.output.source_data2,
+
     output:
         xlsx = "Pipeline/Paper/SourceData/SourceDataFigures.xlsx"
     run:
@@ -2459,6 +2462,8 @@ rule joinSourceData:
         f7 = pd.read_csv(input.f7, sep="\t")
         f9a = pd.read_csv(input.f9a, sep="\t")
         f9b = pd.read_csv(input.f9b, sep="\t")
+        s4 = pd.read_csv(input.s4, sep="\t")
+        sf6ac = pd.read_csv(input.sf6ac, sep="\t")
         with pd.ExcelWriter(output.xlsx, engine="openpyxl") as writer:
             f3a.to_excel(writer,sheet_name="Figure3A",index=False)
             f3b.to_excel(writer,sheet_name="Figure3B",index=False)
@@ -2469,6 +2474,8 @@ rule joinSourceData:
             f7.to_excel(writer,sheet_name="Figure7",index=False)
             f9a.to_excel(writer,sheet_name="Figure9A",index=False)
             f9b.to_excel(writer,sheet_name="Figure9B",index=False)
+            s4.to_excel(writer,sheet_name="SupplementaryFigure4",index=False)
+            sf6ac.to_excel(writer,sheet_name="SupplementaryFigure6AandC",index=False)
 
 
 rule svgsToPngs:

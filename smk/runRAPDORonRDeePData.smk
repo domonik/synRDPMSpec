@@ -499,6 +499,7 @@ rule plotFigureX:
     output:
         df = "Pipeline/Paper/Supplementary/Tables/SupplementaryTableX.tsv",
         source_data = "Pipeline/Paper/SourceData/F5A.tsv",
+        source_data2 = "Pipeline/Paper/SourceData/SF6A.tsv",
         figurex = "Pipeline/Paper/Subfigures/FigureX.svg",
         supplementary_figurex = "Pipeline/Paper/Supplementary/Figures/FigureS6.svg",
 
@@ -575,6 +576,7 @@ rule plotFigureX:
             index=["RAPDOR", "RDeeP"]
         )
         source_data = pd.DataFrame()
+        source_data2 = pd.DataFrame()
         #out_df["AUROC"] = pd.NA
         #out_df["AUPRC"] = pd.NA
         for idx, (sort_col, name, term, color) in enumerate(data):
@@ -597,6 +599,8 @@ rule plotFigureX:
             lgroup = "RBP" if term == "RNA binding" else "RDP"
             out_df.loc[name, (lgroup, "AUROC")] = auroc
             out_df.loc[name, (lgroup, "AUPRC")] = auprc
+            source_data2[f"{name} {lgroup} - False positive rate"] = fpr
+            source_data2[f"{name} {lgroup} - True positive rate"] = tpr
             if lgroup == "RBP":
                 source_data[f"{name} - False positive rate"] = fpr
                 source_data[f"{name} - True positive rate"] = tpr
@@ -664,6 +668,7 @@ rule plotFigureX:
         rbp_fig = plotly.io.read_json(input.json_rbp)
         rdp_fig = plotly.io.read_json(input.json_rdp)
         source_data.to_csv(output.source_data, sep="\t", index=False)
+        source_data2.to_csv(output.source_data2, sep="\t", index=False)
 
         for idx, (name, fig) in enumerate([("All", all_fig), ("RBP", rbp_fig), ("RDP", rdp_fig)], 1):
             if name == "RDP":
