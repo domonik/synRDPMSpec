@@ -9,20 +9,20 @@ benchmark_repeats:  5
 fonts:
   default:
     family: "Arial"
-    size: 12
+    size: 7
   legend:
     family: "Arial"
-    size: 10
+    size: 6
     color: "black"
   axis:
     family: "Arial"
-    size: 12
+    size: 7
   axis_ticks:
     family: "Arial"
-    size: 10
+    size: 7
   annotations:
     family: "Arial"
-    size: 12
+    size: 5
 width: 624
 height: 400
 

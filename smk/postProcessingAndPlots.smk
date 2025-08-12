@@ -1523,6 +1523,12 @@ rule plotANOSIMRDistribution:
         rdeppjson = rules.runRAPDORonRDeeP.output.json
     output:
         svg = "Pipeline/Paper/Supplementary/Figures/FigureS5.svg",
+        source_gradr = "Pipeline/Paper/SourceData/gradr.tsv",
+        source_rdeep = "Pipeline/Paper/SourceData/rdeep.tsv",
+        source_egf2 = "Pipeline/Paper/SourceData/egf2.tsv",
+        source_egf8 = "Pipeline/Paper/SourceData/egf8.tsv",
+        source_egf20 = "Pipeline/Paper/SourceData/egf20.tsv",
+        source_egf90 = "Pipeline/Paper/SourceData/egf90.tsv",
     threads: 1
     run:
         from RAPDOR.datastructures import RAPDORData
@@ -1531,12 +1537,13 @@ rule plotANOSIMRDistribution:
         ip_files = list(input.np) + [input.rdeppdistribution] + list(input.npegf)
         json_files = list(input.json) + [input.rdeppjson] + list(input.jsonegf)
         ip_files = zip(ip_files, json_files)
+        row_titles = ["GradR", "RDeeP", "2 min", "8 min", "20 min", "90 min"]
         fig = make_subplots(
             rows=len(json_files),
             shared_xaxes=True,
             x_title="ANOSIM R",
             y_title="Probability",
-            row_titles=["GradR", "RDeeP", "2 min", "8 min", "20 min", "90 min"],
+            row_titles=row_titles,
             vertical_spacing=0.02
         )
         syn_ys = [anno["y"] for anno in fig.layout.annotations[0:2]]
@@ -1574,11 +1581,52 @@ rule plotANOSIMRDistribution:
         fig.add_shape(type="line",
             x0=x_0,y0=egf_ys[0],x1=x_0,y1=egf_ys[-1],xref="x2 domain",yref="paper",line_color="black"
         )
+        source_data_out = [
+            output.source_gradr,
+            output.source_rdeep,
+            output.source_egf2,
+            output.source_egf8,
+            output.source_egf20,
+            output.source_egf90,
+        ]
         for plot_id, (data, json_file) in enumerate(ip_files):
 
             with open(data, "rb") as handle:
                 distribution = np.load(handle)
             rapdor_data = RAPDORData.from_file(json_file)
+
+            source_df = rapdor_data.df
+            title = row_titles[plot_id]
+            if title == "GradR":
+                name = "Gene"
+                rep = 3
+                treat = "RNase"
+                add = 2
+            elif title == "RDeeP":
+                name = "Protein"
+                rep = 3
+                treat = "RNase"
+                add = 2
+
+            else:
+                name = "Gene.names"
+                rep = 4
+                treat = "EGF"
+                add = 1
+
+            source_data = rapdor_data.df.loc[:, [name]]
+
+
+            source_data = source_data.loc[source_data.index.repeat(2*rep)].reset_index(drop=True)
+            source_data["type"] = (["Control"] * rep + [treat] * rep) * (source_data.shape[0] // (2*rep))
+
+            subdata = rapdor_data.norm_array
+            rsubdata = subdata.reshape(source_data.shape[0],-1)
+
+            source_data.loc[:, [f"rel. Intensity Fraction {x + add}" for x in range(rsubdata.shape[1])]] = rsubdata
+            source_data.to_csv(source_data_out[plot_id],sep="\t",index=False)
+
+
             original_dist = rapdor_data.df["ANOSIM R"]
 
             y, x = np.histogram(
@@ -2458,8 +2506,14 @@ rule joinSourceData:
         f9a = rules.plotEGFHeLa.output.source_data,
         f9b = rules.plotEGFHeLa.output.source_datab,
         s4 = expand(rules.plotTopHitDistributions.output.source_data,distribution=["S3"])[0],
+        s5gradr = rules.plotANOSIMRDistribution.output.source_gradr,
+        s5rdeep = rules.plotANOSIMRDistribution.output.source_rdeep,
+        s5egf2min = rules.plotANOSIMRDistribution.output.source_egf2,
+        s5egf8min = rules.plotANOSIMRDistribution.output.source_egf8,
+        s5egf20min = rules.plotANOSIMRDistribution.output.source_egf20,
+        s5egf90min = rules.plotANOSIMRDistribution.output.source_egf90,
         sf6ac = rules.plotFigureX.output.source_data2,
-        sf7 = rules.meanRuntimeAndRAM.output.file,
+        sf7 = rules.meanRuntimeAndRAM.output.source_data,
         sf9 = rules.plotJSDMScoreCorrelation.output.source_data
     output:
         xlsx = "Pipeline/Paper/SourceData/SourceDataFigures.xlsx"
@@ -2475,6 +2529,12 @@ rule joinSourceData:
         f9a = pd.read_csv(input.f9a, sep="\t")
         f9b = pd.read_csv(input.f9b, sep="\t")
         s4 = pd.read_csv(input.s4, sep="\t")
+        s5gradr = pd.read_csv(input.s5gradr, sep="\t")
+        s5rdeep = pd.read_csv(input.s5rdeep, sep="\t")
+        s5egf2min = pd.read_csv(input.s5egf2min, sep="\t")
+        s5egf8min = pd.read_csv(input.s5egf8min, sep="\t")
+        s5egf20min = pd.read_csv(input.s5egf20min, sep="\t")
+        s5egf90min = pd.read_csv(input.s5egf90min, sep="\t")
         sf6ac = pd.read_csv(input.sf6ac, sep="\t")
         sf7 = pd.read_csv(input.sf7, sep="\t")
         sf9 = pd.read_csv(input.sf9, sep="\t")
@@ -2489,6 +2549,12 @@ rule joinSourceData:
             f9a.to_excel(writer,sheet_name="Figure9A",index=False)
             f9b.to_excel(writer,sheet_name="Figure9B",index=False)
             s4.to_excel(writer,sheet_name="SupplementaryFigure4",index=False)
+            s5gradr.to_excel(writer,sheet_name="SupplementaryFigure5GradR",index=False)
+            s5rdeep.to_excel(writer,sheet_name="SupplementaryFigure5RDeeP",index=False)
+            s5egf2min.to_excel(writer,sheet_name="SupplementaryFigure5EGF2min",index=False)
+            s5egf8min.to_excel(writer,sheet_name="SupplementaryFigure5EGF8min",index=False)
+            s5egf20min.to_excel(writer,sheet_name="SupplementaryFigure5EGF20min",index=False)
+            s5egf90min.to_excel(writer,sheet_name="SupplementaryFigure5EGF90min",index=False)
             sf6ac.to_excel(writer,sheet_name="SupplementaryFigure6AandC",index=False)
             sf7.to_excel(writer,sheet_name="SupplementaryFigure7",index=False)
             sf9.to_excel(writer,sheet_name="SupplementaryFigure9",index=False)
