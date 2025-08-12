@@ -9,21 +9,21 @@ benchmark_repeats:  5
 fonts:
   default:
     family: "Arial"
-    size: 7
+    size: 9.33
   legend:
     family: "Arial"
-    size: 6
+    size: 8
     color: "black"
   axis:
     family: "Arial"
-    size: 7
+    size: 8
   axis_ticks:
     family: "Arial"
-    size: 7
+    size: 8
   annotations:
     family: "Arial"
-    size: 5
-width: 624
+    size: 9.33
+width: 680
 height: 400
 
 margin:
@@ -34,9 +34,9 @@ margin:
 
 F3:
   A:
-    height: 300
+    height: 200
   B:
-    height: 300
+    height: 200
   C:
     height: 130
 
@@ -63,7 +63,7 @@ HeLaPlot:
 distributions:
   D1:
     locus_tags: ["ssr3189","ssl2245", "slr0782", "sll0947", "slr0711", "slr0147", "sll0726", "slr0355", "slr2130", "ssl3355", "sll1967" ,"slr1531","sll0517" ,"slr1265" ,"sll7087", "slr1030", "sll1961", "slr0670", "sll1371", "sll1315"]
-    height: 1100
+    height: 793
     vertical_spacing: 0.022
     legend2_y: 1.05
   D2:
@@ -101,7 +101,7 @@ minGSSize: 30
 maxGSSize: 500
 
 anosimCutoff: 0.48
-multipanel_font_size: 18
+multipanel_font_size: 7
 
 Mouse:
   muscle:

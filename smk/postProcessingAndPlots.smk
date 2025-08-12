@@ -616,7 +616,7 @@ rule rplaDistribution:
 
         ))
         fig.update_xaxes(dtick=1)
-        fig.update_layout(template=DEFAULT_TEMPLATE, height=config["F3"]["A"]["height"], width=config["width"])
+        fig.update_layout(template=DEFAULT_TEMPLATE, height=config["F3"]["A"]["height"], width=config["width"] // 2)
         fig.update_yaxes(row=4, showgrid=False)
 
         fig.update_yaxes( row=5, showgrid=False)
@@ -677,18 +677,23 @@ rule plotTopHitDistributions:
             legend=dict(font=config["fonts"]["legend"], y=1.015),
             legend2=dict(font=config["fonts"]["legend"], y=dist_config["legend2_y"]),
         )
-        fig.update_layout(margin=dict(l=70, r=50, b=45))
+        fig.update_layout(margin=dict(l=40, r=30, b=37))
         fig.update_annotations(font=config["fonts"]["annotations"])
         for annotation in fig.layout.annotations:
             if annotation.text not in ("rel. Protein Intensities", "Zoom to strongest shift", "Fraction"):
-                annotation.update(x=1.2, xanchor="right")
+                annotation.update(x=1.1, xanchor="right")
             elif annotation.text == "Fraction":
-                annotation.update(yshift=-30)
+                annotation.update(yshift=-15)
+            elif annotation.text == "rel. Protein Intensities":
+                annotation.update(x=.03)
             if annotation.text == "RaiA/LrtA":
                 annotation.text = "LrtA"
             if annotation.text == "Sll1371":
                 annotation.text = "SyCrp1"
-
+        fig.update_layout(
+            legend=dict(title=dict(font=dict(size=config["fonts"]["default"]["size"]))),
+            legend2=dict(title=dict(font=dict(size=config["fonts"]["default"]["size"]))),
+        )
         fig.update_traces(line=dict(width=2),
                 marker=dict(size=3),)
         fig.update_yaxes(nticks=2, col=2)
@@ -739,7 +744,7 @@ rule plotMeanDistribution:
 
         fig.update_layout(
             height=config["F3"]["B"]["height"],
-            width=config["width"],
+            width=config["width"] // 2,
             template=DEFAULT_TEMPLATE,
             margin=dict(
                 b=30,
@@ -796,7 +801,7 @@ rule plotBarcodePlot:
         fig.layout.annotations = None
 
         fig.update_layout(
-            width=config["width"],height=config["F3"]["C"]["height"],
+            width=config["width"] // 2, height=config["F3"]["C"]["height"],
             margin=dict(
                 b=30,
                 t=20,
