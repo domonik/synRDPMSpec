@@ -18,8 +18,8 @@ DEFAULT_TEMPLATE = DEFAULT_TEMPLATE.update(
             title=dict(font=config["fonts"]["axis"]),
             tickfont=config["fonts"]["axis_ticks"],
         ),
-        legend=dict(font=config["fonts"]["legend"]),
-        legend2=dict(font=config["fonts"]["legend"]),
+        legend=dict(font=config["fonts"]["legend"], title=dict(font=config["fonts"]["default"])),
+        legend2=dict(font=config["fonts"]["legend"], title=dict(font=config["fonts"]["default"])),
         annotationdefaults=dict(font=config["fonts"]["annotations"]),
         margin=config["margin"],
         coloraxis=dict(colorbar=dict(tickfont=config["fonts"]["legend"]))
@@ -292,7 +292,7 @@ rule plotComparisonExample:
     input:
         rapdor = rules.sortAndRankRDeep.output.json
     output:
-        svg = "Pipeline/RAPDORonRDeeP/Plots/ComparisonExample.svg",
+        svg = "Pipeline/Paper/Subfigures/ComparisonExample.svg",
         html = "Pipeline/RAPDORonRDeeP/Plots/ComparisonExample.html",
         source_data = "Pipeline/Paper/SourceData/F5C.tsv",
 
@@ -341,7 +341,15 @@ rule plotComparisonExample:
             template=DEFAULT_TEMPLATE,
             width=config["width"],
             height=config["FR1"]["C"]["height"],
+            margin=config["margin"]
         )
+
+        fig.update_layout(legend=dict(title=dict(text="Control")))
+        fig.update_yaxes(title_standoff=1)
+        fig.update_xaxes(title_standoff=1, dtick=1)
+        fig.layout.annotations = [anno for anno in fig.layout.annotations if anno.text not in ["Fraction", "rel. Protein Intensities"]]
+        fig.update_yaxes(title=dict(text="rel. Protein Intensities"), row=2)
+        fig.update_xaxes(title=dict(text="Fraction"), row=3)
         fig.update_annotations(font=config["fonts"]["annotations"])
         fig.update_legends(
             font=config["fonts"]["legend"]
@@ -702,9 +710,8 @@ rule plotFigureX:
                 xanchor="center",
                 x=0.5,
                 yref=f"y{col} domain",
-                yanchor="bottom",
+                yanchor="top",
                 y=0,
-                font=dict(size=12),
                 showarrow=False
 
             )
@@ -720,14 +727,15 @@ rule plotFigureX:
             table, row=2, col=1
         )
 
+        multi_fig.update_layout(legend2=dict(x=0,y=1.01,xanchor="left",yanchor="bottom",orientation="h"))
 
         multi_fig.update_layout(
             template=DEFAULT_TEMPLATE,
             legend=dict(
-                x=0.5,
-                y=0,
-                xref="container",
-                yref="container",
+                x=0.66,
+                y=1.01,
+                xref="paper",
+                yref="paper",
                 xanchor="center",
                 yanchor="bottom",
                 orientation="h"
@@ -738,6 +746,34 @@ rule plotFigureX:
             width=config["width"],
             margin=config["margin"],
             height=config["FR1"]["AB"]["height"],
+        )
+        multi_fig.update_yaxes(title_standoff=1)
+        multi_fig.update_xaxes(title_standoff=1)
+
+        multi_fig.add_trace(
+            go.Scatter(
+                x=[None],
+                y=[None],
+                mode="lines",
+                line=dict(color=multi_fig.data[0].marker.color),
+                name=multi_fig.data[0].name,
+                legend="legend2",
+                showlegend=True,
+
+            )
+        )
+        multi_fig.add_trace(
+            go.Scatter(
+                x=[None],
+                y=[None],
+                mode="lines",
+                line=dict(color=multi_fig.data[2].marker.color),
+                name=multi_fig.data[2].name,
+                legend="legend2",
+                showlegend=True,
+
+
+            )
         )
         title_standoff = 3
         fig2.update_layout(
@@ -765,10 +801,10 @@ rule plotFigureR1:
     run:
         from svgutils.compose import Figure, Panel, SVG, Text
 
-        c_y = config["FR1"]["C"]["height"]
-        ges_y = c_y + config["FR1"]["AB"]["height"]
+        c_y = config["FR1"]["AB"]["height"]
+        ges_y = c_y + config["FR1"]["C"]["height"]
         letter_b_x = config["width"] // 3 + 50
-        f = Figure("624px",f"{ges_y}px",
+        f = Figure(f"{config['width']}px",f"{ges_y}px",
             Panel(
                 SVG(input.ab),
                 Text("A",2,15,size=config["multipanel_font_size"],weight='bold',font="Arial"),

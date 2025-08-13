@@ -9,7 +9,7 @@ benchmark_repeats:  5
 fonts:
   default:
     family: "Arial"
-    size: 9.33
+    size: 9.333333333333
   legend:
     family: "Arial"
     size: 8
@@ -22,7 +22,7 @@ fonts:
     size: 8
   annotations:
     family: "Arial"
-    size: 9.33
+    size: 9.333333333333
 width: 680
 height: 400
 
@@ -30,7 +30,7 @@ margin:
   b: 50
   t: 20
   r: 30
-  l: 70
+  l: 50
 
 F3:
   A:
@@ -42,9 +42,9 @@ F3:
 
 FR1:
   AB:
-    height: 300
+    height: 250
   C:
-    height: 300
+    height: 350
 
 QCPlot:
   A:
