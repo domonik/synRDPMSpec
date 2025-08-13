@@ -17,14 +17,16 @@ DEFAULT_TEMPLATE = DEFAULT_TEMPLATE.update(
         xaxis=dict(
             title=dict(font=config["fonts"]["axis"]),
             tickfont=config["fonts"]["axis_ticks"],
+            title_standoff=1
 
         ),
         yaxis=dict(
             title=dict(font=config["fonts"]["axis"]),
             tickfont=config["fonts"]["axis_ticks"],
+            title_standoff=1
         ),
-        legend=dict(font=config["fonts"]["legend"]),
-        legend2=dict(font=config["fonts"]["legend"]),
+        legend=dict(font=config["fonts"]["legend"], title=dict(font=config["fonts"]["default"])),
+        legend2=dict(font=config["fonts"]["legend"], title=dict(font=config["fonts"]["default"])),
         annotationdefaults=dict(font=config["fonts"]["annotations"]),
         margin=config["margin"],
         coloraxis=dict(colorbar=dict(tickfont=config["fonts"]["legend"]))
@@ -840,6 +842,7 @@ rule plotBarcodePlot:
         fig.update_layout(xaxis=dict(title_standoff=1))
         fig.update_layout(xaxis=dict(title_standoff=1))
         fig.update_layout(legend=dict(x=None, y=None, orientation="v", xanchor=None, yanchor=None))
+        fig.update_layout(margin=dict(t=10))
         fig.write_image(output.svg)
         fig.write_html(output.html)
 
@@ -2173,6 +2176,12 @@ rule plotEGFHeLa:
         for annotation in dist_fig.layout.annotations:
             if annotation.text == "Fraction":
                 annotation.update(y=annotation.y - 0.04)
+            if annotation.text.startswith("rel."):
+                annotation.update(x=0.03)
+
+        fig.layout.annotations[4].update(xanchor="left")
+        dist_fig.update_legends(y=-0.2,yref="paper",yanchor="top",x=0,xanchor="left",xref="paper")
+        dist_fig.update_traces(selector=dict(type='scatter'), error_y=dict(width=8))
         fig.write_image(output.svg)
         fig.write_html(output.html)
         dist_fig.write_image(output.dist_svg)
@@ -2190,7 +2199,7 @@ rule joinHeLaPlot:
 
         b_y = config["HeLaPlot"]["A"]["height"]
         ges_y = b_y + config["HeLaPlot"]["B"]["height"]
-        f = Figure("624px",f"{ges_y}px",
+        f = Figure(f"{config['width']}px",f"{ges_y}px",
             Panel(
                 SVG(input.svg1),
                 Text("A",2,15,size=config["multipanel_font_size"],weight='bold',font="Arial")

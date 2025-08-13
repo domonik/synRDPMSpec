@@ -34,11 +34,11 @@ margin:
 
 F3:
   A:
-    height: 300
+    height: 285
   B:
-    height: 300
+    height: 285
   C:
-    height: 120
+    height: 100
 
 FR1:
   AB:
@@ -56,9 +56,9 @@ QCPlot:
 
 HeLaPlot:
   A:
-    height: 550
+    height: 490
   B:
-    height: 250
+    height: 200
 
 distributions:
   D1:
