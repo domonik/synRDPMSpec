@@ -1422,7 +1422,8 @@ rule detectedProteinTable:
     input:
         json = rules.run_RAPDOR.output.json
     output:
-        file2 = "Pipeline/Paper/Supplementary/Tables/TableS4.xlsx"
+        file2 = "Pipeline/Paper/Supplementary/Tables/TableS4.xlsx",
+        svg = "Pipeline/Paper/Subfigures/Figure1E.svg"
     run:
         from RAPDOR.datastructures import RAPDORData
         import numpy as np
@@ -1470,18 +1471,29 @@ rule detectedProteinTable:
         df.index.name = "Fraction"
         #df.to_csv(output.file, sep="\t")
         colors = ["#008e97", "#fc4c02"]
-
         # Create the custom color map
         cmap = LinearSegmentedColormap.from_list('custom_cmap',colors)
 
-
+        z = df2.iloc[0:20].to_numpy()
+        fig = go.Figure(go.Heatmap(
+            x=df2.columns, y=df2.index, z=z, colorscale=colors, text=z, texttemplate="%{text}", showscale=False, textfont=dict(color="black", **config["fonts"]["axis"])),)
+        fig.update_yaxes(title=dict(text="Fraction"), dtick=1)
+        fig.update_xaxes(ticktext=[str(v).split('-')[-1] for v in df2.columns], tickvals=df2.columns)
+        y=1.05
+        fig.add_shape(type="line", x0=(1/6)-(1/12), x1=(3/6)-(1/12), y0=y, y1=y, line=dict(color="black", width=1), xref="paper", yref="paper")
+        fig.add_annotation(x=(1/6)+(1/12), y=y, yref="paper", xref="paper", xanchor="center", yanchor="bottom", text="Control", showarrow=False )
+        fig.add_shape(type="line", x0=(4/6)-(1/12), x1=(6/6)-(1/12), y0=y, y1=y, line=dict(color="black", width=1), xref="paper", yref="paper")
+        fig.add_annotation(x=(4/6)+(1/12), y=y, yref="paper", xref="paper", xanchor="center", yanchor="bottom", text="RNase", showarrow=False )
+        fig.update_layout(template=DEFAULT_TEMPLATE, width=config["width"] // 3, height=270, margin=dict(b=10, l=20))
+        fig.write_image(output.svg)
         def apply_gradient(column):
             return column.style.background_gradient(cmap=cmap)
-
 
         df2 = df2.style.background_gradient(cmap=cmap, axis=0)
         df.loc['Sum'] = df.sum(axis=0)
         df2.to_excel(output.file2)
+
+
         #df2.loc['Sum'] = df2.sum(axis=0)
 
 rule calcANOSIMDistribution:
