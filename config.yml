@@ -34,11 +34,11 @@ margin:
 
 F3:
   A:
-    height: 200
+    height: 300
   B:
-    height: 200
+    height: 300
   C:
-    height: 130
+    height: 120
 
 FR1:
   AB:
@@ -101,7 +101,7 @@ minGSSize: 30
 maxGSSize: 500
 
 anosimCutoff: 0.48
-multipanel_font_size: 7
+multipanel_font_size: 12
 
 Mouse:
   muscle:

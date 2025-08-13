@@ -505,6 +505,13 @@ rule GOEnrichment:
 
 
 
+f3margin=dict(
+                b=30,
+                t=20,
+                r=70,
+                l=40
+            )
+
 rule rplaDistribution:
     input:
         file = rules.run_RAPDOR.output.json,
@@ -616,7 +623,7 @@ rule rplaDistribution:
 
         ))
         fig.update_xaxes(dtick=1)
-        fig.update_layout(template=DEFAULT_TEMPLATE, height=config["F3"]["A"]["height"], width=config["width"] // 2)
+        fig.update_layout(template=DEFAULT_TEMPLATE, height=config["F3"]["A"]["height"], width=config["width"])
         fig.update_yaxes(row=4, showgrid=False)
 
         fig.update_yaxes( row=5, showgrid=False)
@@ -632,6 +639,15 @@ rule rplaDistribution:
             xanchor="left",
             showarrow=False
         )
+        fig.update_traces(selector=dict(type="scatter"),line=dict(width=1), marker=dict(size=1))
+        fig.update_layout(
+            legend=dict(font=config["fonts"]["legend"], title=dict(font=dict(size=config["fonts"]["default"]["size"]))),
+            legend2=dict(font=config["fonts"]["legend"], title=dict(font=dict(size=config["fonts"]["default"]["size"]))),
+            margin=f3margin
+        )
+        fig.update_annotations(font=config["fonts"]["annotations"])
+        fig.update_layout(xaxis3=dict(title_standoff=1))
+        fig.update_layout(yaxis=dict(title_standoff=1))
         fig.write_image(output.svg)
 
 
@@ -709,6 +725,7 @@ rule plotMeanDistribution:
     run:
         from RAPDOR.datastructures import RAPDORData
         import pandas as pd
+        import plotly.graph_objects as go
         import math
         from RAPDOR.plots import multi_means_and_histo, COLOR_SCHEMES, DEFAULT_TEMPLATE, plot_distance_histo
 
@@ -744,19 +761,32 @@ rule plotMeanDistribution:
 
         fig.update_layout(
             height=config["F3"]["B"]["height"],
-            width=config["width"] // 2,
+            width=config["width"],
             template=DEFAULT_TEMPLATE,
-            margin=dict(
-                b=30,
-                t=20,
-                r=30,
-                l=30
-            ),
+            margin=f3margin
         )
         fig.update_annotations(
             dict(font=config["fonts"]["axis"])
         )
+        fig.update_layout(
+            legend=dict(title=dict(font=dict(size=config["fonts"]["default"]["size"]))),
+            legend2=dict(title=dict(font=dict(size=config["fonts"]["default"]["size"]))),
+        )
+        for anno in fig.layout.annotations:
+            if anno.text == "Fraction":
+                anno.update(y=0.08, x=0.5)
+        li = [trace for trace in fig.data if trace.showlegend]
+        fig.update_traces(showlegend=False, legend="legend", legendgroup=None, legendgrouptitle=dict(text=None))
+        fig.update_yaxes(title_standoff=1)
+        fig.layout.legend2 = None
+        fig.update_layout(legend=dict(title=dict(text=None), orientation="v", x=None, y=0, yanchor="bottom", itemsizing="constant", itemwidth=30))
+        fig.add_trace(go.Scatter(x=[None], y=[None], mode="lines", name="Control", line=dict(color=li[0].marker.color), showlegend=True, legendgroup="Treatment", legendgrouptitle=dict(text="Treatment")))
+        fig.add_trace(go.Scatter(x=[None], y=[None], mode="lines", name="RNase", line=dict(color=li[1].marker.color), showlegend=True, legendgroup="Treatment", legendgrouptitle=dict(text="Treatment")))
+
+        fig.add_trace(go.Scatter(x=[None],y=[None],mode="lines", name="Group mean",line=dict(color="rgba(0, 0, 0, 1)"),showlegend=True, legendgroup="Lines", legendgrouptitle=dict(text="Lines")))
+        fig.add_trace(go.Scatter(x=[None],y=[None],mode="lines", name="Protein mean",line=dict(color="rgba(0, 0, 0, 0.25)"),showlegend=True, legendgroup="Lines", legendgrouptitle=dict(text="Lines")))
         fig.write_image(output.svg)
+
 
 
 rule plotBarcodePlot:
@@ -801,21 +831,15 @@ rule plotBarcodePlot:
         fig.layout.annotations = None
 
         fig.update_layout(
-            width=config["width"] // 2, height=config["F3"]["C"]["height"],
-            margin=dict(
-                b=30,
-                t=20,
-                r=30,
-                l=30
-            ),
+            width=config["width"], height=config["F3"]["C"]["height"],
+            margin=f3margin,
             legend=dict(bgcolor = 'rgba(0,0,0,0)', )
 
         )
 
-
-
-
-
+        fig.update_layout(xaxis=dict(title_standoff=1))
+        fig.update_layout(xaxis=dict(title_standoff=1))
+        fig.update_layout(legend=dict(x=None, y=None, orientation="v", xanchor=None, yanchor=None))
         fig.write_image(output.svg)
         fig.write_html(output.html)
 
@@ -1371,7 +1395,7 @@ rule combineFigure3:
         b_y = config["F3"]["A"]["height"]
         c_y = config["F3"]["A"]["height"] + config["F3"]["B"]["height"]
         ges_y = config["F3"]["A"]["height"] + config["F3"]["B"]["height"] + config["F3"]["C"]["height"]
-        f = Figure("624px",f"{ges_y}px",
+        f = Figure(f"{config['width']}px",f"{ges_y}px",
             Panel(
                 SVG(input.rpla),
                 Text("A",2,15,size=config["multipanel_font_size"],weight='bold', font="Arial")
