@@ -1205,61 +1205,6 @@ rule createFigure5:
         cp {input.bubble[0]} {output.svg}
         """
 
-rule cpRedistSynecho:
-    input:
-        json = rules.runOnSynData.output.json
-    output:
-        json = "Pipeline/Paper/Supplementary/JSON/RAPDORforSynechocystisabioticStress{condition}.json"
-    shell:
-        "cp {input.json} {output.json}"
-
-
-
-rule plotConditionedSynechochoColdRibo:
-    input:
-        json = expand(rules.runOnSynData.output.json, condition="COLD")
-    output:
-        svg = "Pipeline/Paper/unused/FigureS2.svg",
-        svg2 = "Pipeline/Paper/unused/Figures/FigureS6.svg",
-        html2 = "Pipeline/Paper/unused/Figures/html/FigureS6.html",
-        tsv = "Pipeline/Paper/unused/Tables/TableS6.xlsx",
-        #json = "Pipeline/Paper/Supplementary/JSON/RAPDORforSynechocystisColdShock.json",
-    run:
-        from RAPDOR.datastructures import RAPDORData
-        from RAPDOR.plots import multi_means_and_histo, rank_plot
-        file = input.json[0]
-        with open(file) as handle:
-            data = RAPDORData.from_json(handle.read())
-        r_to_membrane = data.df[(data.df["Gene"].str.contains("rps|rpl")) & (data.df["position strongest shift"] == "Membrane")]["RAPDORid"]
-        names = [f"rpl{id}" for id in [1, 13, 18, 22, 23, 28, 29, 33,]]
-        names += [f"rps{id}" for id in [10, 20, 7, 8]]
-        identified_inpub = data.df[data.df["Gene"].isin(names)]["RAPDORid"]
-        d = {"ribosomal & membrane": r_to_membrane}
-        fig = multi_means_and_histo(d,data,colors=COLOR_SCHEMES["Dolphin"] + COLOR_SCHEMES["Viking"])
-        fig.update_traces(
-            marker_color="lightgrey",
-            marker_line=dict(width=0.5,color='black'),
-            row=1
-        )
-        fig.update_traces(
-            marker_color="lightgrey",
-            marker_line=dict(width=0.5,color='black'),
-            row=2
-        )
-        fig.write_image(output.svg)
-        fig = rank_plot(d, rapdordata=data, colors = COLOR_SCHEMES["Dolphin"] + COLOR_SCHEMES["Viking"])
-        fig.layout.shapes = None
-        fig.layout.annotations = None
-        fig.update_layout(width=config["width"])
-        fig.update_layout(height=config["height"] / 2)
-
-        fig.write_image(output.svg2)
-        fig.write_html(output.html2)
-        data.df["mentioned in wang"] = data.df["Gene"].isin(names)
-        data.export_csv(output.tsv, sep="\t")
-        data: RAPDORData
-        df = data.extra_df.drop(["id"],axis=1)
-        df.to_excel(output.tsv, index=False)
 
 
 rule analyzeProteinAbundance:
@@ -2640,7 +2585,6 @@ rule svgsToPngs_supplementary:
 
 rule zipSupplementaryFile1:
     input:
-        stress = expand(rules.cpRedistSynecho.output.json, condition=["COLD", "HEAT", "DARK", "N", "Fe"]),
         synechorapdor = rules.postProcessRapdorData.output.file,
         hela = expand(rules.calcMobilityScore.output.json, experiment=[f"egf_{x}min" for x in (2, 8, 20, 90)]),
         rdeep = rules.runRAPDORonRDeeP.output.json

@@ -86,24 +86,3 @@ rule exportImputedValues:
         csv = "Pipeline/RDeep/preparedIntensities.csv"
     script: "../pyfunctions/exportRAPDOR.py"
 
-
-rule runOnSynData:
-    input:
-        intensities=rules.prepareSynConditionedMS.output.intensities,
-        design=rules.prepareSynConditionedMS.output.design,
-    output:
-        json = "Pipeline/ConditionedSynechocystis/analyzed/{condition}_Analyzed.json",
-        tsv = "Pipeline/ConditionedSynechocystis/analyzed/{condition}_Analyzed.tsv"
-    run:
-        from RAPDOR.datastructures import RAPDORData
-        import pandas as pd
-
-        df = pd.read_csv(input.intensities,sep="\t")
-        design = pd.read_csv(input.design,sep="\t")
-        rbpmdata = RAPDORData(df=df,design=design)
-        rbpmdata.normalize_and_get_distances(method="Jensen-Shannon-Distance")
-        rbpmdata.calc_all_scores()
-        rbpmdata.rank_table(["ANOSIM R", "Mean Distance"],ascending=(False, False))
-        rbpmdata.to_json(output.json)
-        rbpmdata.export_csv(output.tsv,sep="\t")
-
