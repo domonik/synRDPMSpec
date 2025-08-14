@@ -101,7 +101,7 @@ rule pca:
     input:
         file=rules.run_RAPDOR.output.json,
     output:
-        svg = "Pipeline/plots/QC_PCA.svg",
+        svg = "Pipeline/Paper/Subfigures/QC_PCA.svg",
     run:
         from RAPDOR.datastructures import RAPDORData
         import pandas as pd
@@ -125,10 +125,10 @@ rule sampleCorrelation:
     output:
         svg = "Pipeline/plots/QC_Correlation.svg",
         png = "Pipeline/plots/QC_Correlation.png",
-        corr= "Pipeline/plots/QC_Correlation_onlyReplicate.svg",
+        corr= "Pipeline/Paper/Subfigures/QC_Correlation_onlyReplicate.svg",
         corr_png= "Pipeline/plots/QC_Correlation_onlyReplicate.png",
         corr_html= "Pipeline/plots/QC_Correlation_onlyReplicate.html",
-        histo = "Pipeline/plots/QC_CorrHistogram.svg",
+        histo = "Pipeline/Paper/Subfigures/QC_CorrHistogram.svg",
     run:
         from RAPDOR.datastructures import RAPDORData
         from RAPDOR.plots import plot_sample_correlation, COLOR_SCHEMES, plot_sample_histogram, plot_sample_pca
@@ -1607,7 +1607,7 @@ rule plotANOSIMRDistribution:
         #     ),
         #     y=syn_y
         # )
-        x_0 = 1.1
+        x_0 = 1.05
         # fig.add_shape(type="line",
         #     x0=x_0,y0=syn_ys[0] + 0.025,x1=x_0,y1=syn_ys[-1] - 0.025,xref="x2 domain",yref="paper",line_color="black"
         # )
@@ -1618,8 +1618,8 @@ rule plotANOSIMRDistribution:
             yanchor="middle",
             xanchor="left",
             textangle=90,
-            x=1.15,
-            font=dict(size=16),
+            x=x_0,
+            showarrow=False,
             y=egf_y
         )
         fig.add_shape(type="line",
@@ -1714,6 +1714,7 @@ rule plotANOSIMRDistribution:
 
         fig.update_xaxes(range=[-1, 1])
         fig.update_layout(template=DEFAULT_TEMPLATE)
+        fig.update_annotations(font=config["fonts"]["annotations"])
         fig.update_layout(width=config["width"])
         fig.update_layout(height=config["height"]*1.5)
         fig.update_layout(margin=dict(
@@ -1813,6 +1814,7 @@ rule plotJSDMScoreCorrelation:
             width=config["width"],
             height=config["height"]
         )
+        fig.update_annotations(font=config["fonts"]["annotations"])
         fig.write_image(output.svg)
         merged_df = dfs[0]
         for df in dfs[1:]:
@@ -2461,7 +2463,7 @@ rule joinQCPlot:
         c_y = config["QCPlot"]["A"]["height"]
         b_x = config["width"] // 2
         ges_y = c_y + config["QCPlot"]["C"]["height"]
-        f = Figure("624px",f"{ges_y}px",
+        f = Figure(f"{config['width']}px",f"{ges_y}px",
             Panel(
                 SVG(input.a),
                 Text("A",2,15,size=config["multipanel_font_size"],weight='bold',font="Arial")

@@ -532,7 +532,7 @@ rule plotFigureX:
         fig2.add_annotation(
             text="<b>A</b>",
             font=dict(size=config["multipanel_font_size"],family="Arial"),
-            x=0 - 0.1,
+            x=0 - 0.05,
             y=.99,
             xref="paper",
             yref="paper",
@@ -555,7 +555,7 @@ rule plotFigureX:
         fig2.add_annotation(
             text="<b>C</b>",
             font=dict(size=config["multipanel_font_size"],family="Arial"),
-            x=0 - 0.1,
+            x=- 0.05,
             y=.25,
             xref="paper",
             yref="paper",
