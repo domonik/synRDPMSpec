@@ -23,7 +23,7 @@ rule all:
         #p = rules.plotBarcodePlot.output,
         #df = rules.prepareinitialData.output,
         #bubble_plot = expand(rules.createBubblePlot.output, highlight=["overlapping"]),
-        #benchmark = rules.plotRuntime.output,
+        benchmark = rules.plotRuntime.output,
         #salmonella = rules.runIdentifierOnSalmonella.output,
         #syn_cond = expand(rules.runOnSynData.output, condition=["COLD", "HEAT", "DARK", "N", "Fe"]),
         #overlapping_data = rules.extract_tophits.output,
