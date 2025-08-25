@@ -2130,7 +2130,7 @@ rule plotEGFHeLa:
             dict(font=config["fonts"]["axis"])
         )
         dist_fig.update_layout(font=config["fonts"]["default"], legend=dict(font=config["fonts"]["legend"], title=None))
-        dist_fig.update_layout(margin=config["margin"])
+        dist_fig.update_layout(margin=config["margin"], barmode="overlay")
         dist_fig.update_layout(margin=dict(b=10, t=10))
         for annotation in dist_fig.layout.annotations:
             if annotation.text == "Fraction":
@@ -2562,6 +2562,7 @@ rule svgsToPngs:
         expand("Pipeline/Paper/Figure{i}.svg", i=list(range(1, 8)) + list(range(9, 11)) )
     output:
         expand("Pipeline/Paper/Figure{i}.png", i=list(range(1, 8)) + list(range(9, 11)))
+    threads: 999
     shell:
         """
         for svg in {input}; do
@@ -2591,4 +2592,4 @@ rule zipSupplementaryFile1:
     output:
         file = "Pipeline/Paper/Supplementary/SupplementaryFile1.zip"
     shell:
-        "zip -j {output.file} {input.synechorapdor} {input.stress} {input.hela} {input.rdeep}"
+        "zip -j {output.file} {input.synechorapdor} {input.hela} {input.rdeep}"

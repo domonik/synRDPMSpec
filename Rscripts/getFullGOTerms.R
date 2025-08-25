@@ -1,6 +1,9 @@
 library("GO.db")
 library(tidyr)
 library(parallel)
+library(dplyr)
+library(tidyr)
+library(stringr)
 
 symbolTable <- snakemake@input[["go_table"]]
 goTerms <- read.table(symbolTable, sep="\t", header=TRUE)
@@ -29,8 +32,7 @@ parentfct2 <- function(term, GOCC, GOMF, GOBP) {
     return(term)
   }
   terms <- unlist(anc[[term]], use.names = FALSE)
-  terms <- terms[-length(terms)]
-  terms <- append(terms, term)
+  terms <- unique(c(terms, term))  # include ancestors + self, remove duplicates
   terms <- paste(terms, collapse = ",")
   return(terms)
 }
@@ -45,9 +47,14 @@ clusterEvalQ(cl, library("GO.db"))  # Add any required libraries here
 goTerms$allTerms <- parSapply(cl, goTerms$GOTerm, function(term) {
   parentfct2(term, GOCCANCESTOR_list, GOMFANCESTOR_list, GOBPANCESTOR_list)
 })
-print(goTerms$allTerms[1])
-goTerms <- separate_rows(goTerms, allTerms, sep=",")
-goTerms <- goTerms[c("old_locus_tag", "GOTerm")]
-write.table(goTerms , file = snakemake@output[["all_terms"]], sep="\t")
+
+
+goTerms_expanded <- goTerms %>%
+  separate_rows(allTerms, sep = ",") %>%
+  mutate(allTerms = str_trim(allTerms)) %>%
+  transmute(old_locus_tag, GOTerm = allTerms) %>%  # <-- use the expanded terms
+  distinct()
+goTerms_expanded <- goTerms_expanded %>% filter(GOTerm != "all")
+write.table(goTerms_expanded , file = snakemake@output[["all_terms"]], sep="\t")
 
 print(goTerms)

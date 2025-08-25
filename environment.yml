@@ -13,5 +13,10 @@ dependencies:
  - matplotlib-venn
  - matplotlib
  - requests
+ - rpy2
+ - r-base
+ - bioconductor-dapar
+ - bioconductor-msnbase
  - pip:
-    - rapdor=0.1.4
+    - rapdor==0.1.9
+    - kaleido==0.2.1
